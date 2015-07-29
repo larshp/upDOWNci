@@ -3,4 +3,4 @@ Upload and download [SAP Code Inspector](http://wiki.scn.sap.com/wiki/display/AB
 
 - Standalone report
 - Version requirement: 702
-- License: MIT
+- MIT License
