@@ -1,6 +1,6 @@
 # upDOWNci
-Upload and download SAP Code Inspector variants in XML format
+Upload and download [SAP Code Inspector](http://wiki.scn.sap.com/wiki/display/ABAP/Code+Inspector) variants in XML format
 
-
-- standalone report
-- version requirement: 702
+- Standalone report
+- Version requirement: 702
+- License: MIT
