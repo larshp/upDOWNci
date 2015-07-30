@@ -106,30 +106,204 @@ ENDCLASS.
 CLASS lcl_xml DEFINITION FINAL.
 
   PUBLIC SECTION.
-    CLASS-METHODS:
+    METHODS:
+      constructor,
       export
-        IMPORTING ig_any TYPE any
+        IMPORTING ig_data TYPE data
+                  iv_testname TYPE sci_tstval-testname
+                  iv_version TYPE sci_tstval-version
         RETURNING VALUE(rv_xml) TYPE string,
       import
         IMPORTING iv_xml TYPE string
-        CHANGING cv_any TYPE any.
+        CHANGING cg_data TYPE data,
+      render
+        RETURNING VALUE(rv_xml) TYPE string.
+
+  PRIVATE SECTION.
+
+    DATA:
+      mi_ixml TYPE REF TO if_ixml,
+      mi_xml_doc TYPE REF TO if_ixml_document.
+
+    METHODS:
+      structure_export
+        IMPORTING ig_data TYPE data
+                  ii_parent TYPE REF TO if_ixml_element,
+      structure_import
+        CHANGING cg_data TYPE data,
+      table_export
+        IMPORTING it_data TYPE STANDARD TABLE
+                  ii_parent TYPE REF TO if_ixml_element,
+      table_import
+        CHANGING ct_data TYPE STANDARD TABLE,
+      simple_export
+        IMPORTING ig_data TYPE simple
+                  ii_parent TYPE REF TO if_ixml_element,
+      simple_import
+        CHANGING cg_data TYPE simple.
 
 ENDCLASS.
 
 CLASS lcl_xml IMPLEMENTATION.
 
+  METHOD constructor.
+
+    mi_ixml = cl_ixml=>create( ).
+    mi_xml_doc = mi_ixml->create_document( ).
+
+  ENDMETHOD.
+
   METHOD export.
 
-* todo
-    BREAK-POINT.
+    DATA: lv_name   TYPE string,
+          lv_string TYPE string,
+          li_test   TYPE REF TO if_ixml_element,
+          li_text   TYPE REF TO if_ixml_text,
+          li_vers   TYPE REF TO if_ixml_element,
+          li_attr   TYPE REF TO if_ixml_element.
+
+
+    lv_name = iv_testname.
+    li_test = mi_xml_doc->create_element( lv_name ).
+    mi_xml_doc->append_child( li_test ).
+
+    li_vers = mi_xml_doc->create_element( 'VERSION' ).
+    lv_string = iv_version.
+    li_text = mi_xml_doc->create_text( lv_string ).
+    li_vers->append_child( li_text ).
+    li_test->append_child( li_vers ).
+
+    li_attr = mi_xml_doc->create_element( 'ATTRIBUTES' ).
+    li_test->append_child( li_attr ).
+
+    structure_export( ig_data   = ig_data
+                      ii_parent = li_attr ).
 
   ENDMETHOD.
 
   METHOD import.
+    structure_import( CHANGING cg_data = cg_data ).
+  ENDMETHOD.
 
+  METHOD render.
+
+    DATA: li_ostream       TYPE REF TO if_ixml_ostream,
+          li_renderer      TYPE REF TO if_ixml_renderer,
+          li_streamfactory TYPE REF TO if_ixml_stream_factory.
+
+
+    li_streamfactory = mi_ixml->create_stream_factory( ).
+
+    li_ostream = li_streamfactory->create_ostream_cstring( rv_xml ).
+
+    li_renderer = mi_ixml->create_renderer( ostream  = li_ostream
+                                            document = mi_xml_doc ).
+    li_renderer->set_normalizing( ).
+    li_renderer->render( ).
+
+* this is the wrong way to do it, but it makes it easier to debug
+* when its possible to see the XML contents in the debugger
+    REPLACE FIRST OCCURRENCE
+      OF '<?xml version="1.0" encoding="utf-16"?>'
+      IN rv_xml
+      WITH '<?xml version="1.0" encoding="utf-8"?>'.
+
+  ENDMETHOD.
+
+  METHOD table_export.
+
+    DATA: lv_kind        TYPE abap_typecategory,
+          li_parent      TYPE REF TO if_ixml_element,
+          lo_data_descr  TYPE REF TO cl_abap_datadescr,
+          lo_table_descr TYPE REF TO cl_abap_tabledescr.
+
+    FIELD-SYMBOLS: <lg_line> TYPE any.
+
+
+    lo_table_descr ?= cl_abap_typedescr=>describe_by_data( it_data ).
+    lo_data_descr = lo_table_descr->get_table_line_type( ).
+    lv_kind = lo_data_descr->kind.
+
+    LOOP AT it_data ASSIGNING <lg_line>.
+      li_parent = mi_xml_doc->create_element( 'ROW' ).
+      ii_parent->append_child( li_parent ).
+
+      CASE lv_kind.
+        WHEN cl_abap_typedescr=>kind_table.
+          table_export( it_data   = <lg_line>
+                        ii_parent = li_parent ).
+        WHEN cl_abap_typedescr=>kind_struct.
+          structure_export( ig_data   = <lg_line>
+                            ii_parent = li_parent ).
+        WHEN cl_abap_typedescr=>kind_elem.
+          simple_export( ig_data   = <lg_line>
+                         ii_parent = li_parent ).
+        WHEN OTHERS.
+          BREAK-POINT.
+      ENDCASE.
+    ENDLOOP.
+
+  ENDMETHOD.
+
+  METHOD table_import.
 * todo
-    BREAK-POINT.
+  ENDMETHOD.
 
+  METHOD simple_export.
+
+    DATA: lv_string TYPE string,
+          li_text   TYPE REF TO if_ixml_text.
+
+
+    lv_string = ig_data.
+    li_text = mi_xml_doc->create_text( lv_string ).
+    ii_parent->append_child( li_text ).
+
+  ENDMETHOD.
+
+  METHOD simple_import.
+* todo
+  ENDMETHOD.
+
+  METHOD structure_export.
+
+    DATA: lo_structdescr TYPE REF TO cl_abap_structdescr,
+          li_parent      TYPE REF TO if_ixml_element,
+          lv_name        TYPE string,
+          lo_typedescr   TYPE REF TO cl_abap_typedescr.
+
+    FIELD-SYMBOLS: <ls_comp> LIKE LINE OF lo_structdescr->components,
+                   <lg_any>  TYPE any.
+
+
+    lo_structdescr ?= cl_abap_typedescr=>describe_by_data( ig_data ).
+
+    LOOP AT lo_structdescr->components ASSIGNING <ls_comp>.
+      lv_name = <ls_comp>-name.
+      li_parent = mi_xml_doc->create_element( lv_name ).
+      ii_parent->append_child( li_parent ).
+      ASSIGN COMPONENT <ls_comp>-name OF STRUCTURE ig_data TO <lg_any>.
+
+      lo_typedescr = cl_abap_typedescr=>describe_by_data( <lg_any> ).
+      CASE lo_typedescr->kind.
+        WHEN cl_abap_typedescr=>kind_table.
+          table_export( it_data   = <lg_any>
+                        ii_parent = li_parent ).
+        WHEN cl_abap_typedescr=>kind_struct.
+          structure_export( ig_data   = <lg_any>
+                            ii_parent = li_parent ).
+        WHEN cl_abap_typedescr=>kind_elem.
+          simple_export( ig_data   = <lg_any>
+                         ii_parent = li_parent ).
+        WHEN OTHERS.
+          BREAK-POINT.
+      ENDCASE.
+    ENDLOOP.
+
+  ENDMETHOD.
+
+  METHOD structure_import.
+* todo
   ENDMETHOD.
 
 ENDCLASS.
@@ -162,9 +336,16 @@ CLASS lcl_updownci DEFINITION FINAL.
     TYPES: ty_type_tt TYPE STANDARD TABLE OF ty_type WITH DEFAULT KEY.
 
     CLASS-METHODS:
+      download
+        IMPORTING iv_xml TYPE string
+        RAISING cx_bcs,
+      read_variant
+        RETURNING VALUE(ro_variant) TYPE REF TO cl_ci_checkvariant,
       handle
         IMPORTING iv_class TYPE seoclsname
                   iv_attributes TYPE xstring
+                  io_xml TYPE REF TO lcl_xml
+                  iv_version TYPE sci_tstval-version
         RAISING cx_static_check,
       read_source
         IMPORTING iv_include TYPE program
@@ -174,7 +355,7 @@ CLASS lcl_updownci DEFINITION FINAL.
         RETURNING VALUE(rt_parameters) TYPE ty_parameter_tt,
       find_types
         IMPORTING iv_class TYPE seoclsname
-                  it_parameters TYPE ty_parameter_tt
+      it_parameters TYPE ty_parameter_tt
         RETURNING VALUE(rt_types) TYPE ty_type_tt
         RAISING cx_static_check,
       show_progress
@@ -206,20 +387,96 @@ CLASS lcl_updownci IMPLEMENTATION.
 
   ENDMETHOD.
 
-  METHOD run.
+  METHOD download.
 
-    DATA: lv_count   TYPE i,
-          lo_variant TYPE REF TO cl_ci_checkvariant.
+    DATA: lt_rawdata  TYPE solix_tab,
+          lv_action   TYPE i,
+          lv_so_obj_len TYPE so_obj_len,
+          lv_size     TYPE i,
+          lv_filename TYPE string,
+          lv_default  TYPE string,
+          lv_path     TYPE string,
+          lv_fullpath TYPE string.
 
-    FIELD-SYMBOLS: <ls_variant> LIKE LINE OF lo_variant->variant.
 
+    lv_default = p_name.
+
+    cl_gui_frontend_services=>file_save_dialog(
+      EXPORTING
+        window_title         = 'Export XML'
+        default_extension    = 'xml'
+        default_file_name    = lv_default
+      CHANGING
+        filename             = lv_filename
+        path                 = lv_path
+        fullpath             = lv_fullpath
+        user_action          = lv_action
+      EXCEPTIONS
+        cntl_error           = 1
+        error_no_gui         = 2
+        not_supported_by_gui = 3
+        OTHERS               = 4 ).                         "#EC NOTEXT
+    IF sy-subrc <> 0.
+      BREAK-POINT.
+    ENDIF.
+    IF lv_action = cl_gui_frontend_services=>action_cancel.
+      RETURN.
+    ENDIF.
+
+    cl_bcs_convert=>string_to_solix(
+      EXPORTING
+        iv_string = iv_xml
+      IMPORTING
+        et_solix = lt_rawdata
+        ev_size = lv_so_obj_len ).
+    lv_size = lv_so_obj_len.
+
+    cl_gui_frontend_services=>gui_download(
+      EXPORTING
+      bin_filesize = lv_size
+        filename                  = lv_fullpath
+        filetype                  = 'BIN'
+      CHANGING
+        data_tab                  = lt_rawdata
+      EXCEPTIONS
+        file_write_error          = 1
+        no_batch                  = 2
+        gui_refuse_filetransfer   = 3
+        invalid_type              = 4
+        no_authority              = 5
+        unknown_error             = 6
+        header_not_allowed        = 7
+        separator_not_allowed     = 8
+        filesize_not_allowed      = 9
+        header_too_long           = 10
+        dp_error_create           = 11
+        dp_error_send             = 12
+        dp_error_write            = 13
+        unknown_dp_error          = 14
+        access_denied             = 15
+        dp_out_of_memory          = 16
+        disk_full                 = 17
+        dp_timeout                = 18
+        file_not_found            = 19
+        dataprovider_exception    = 20
+        control_flush_error       = 21
+        not_supported_by_gui      = 22
+        error_no_gui              = 23
+        OTHERS                    = 24 ).
+    IF sy-subrc <> 0.
+      BREAK-POINT.
+    ENDIF.
+
+  ENDMETHOD.
+
+  METHOD read_variant.
 
     cl_ci_checkvariant=>get_ref(
       EXPORTING
         p_user            = p_user
         p_name            = p_name
       RECEIVING
-        p_ref             = lo_variant
+        p_ref             = ro_variant
       EXCEPTIONS
         chkv_not_exists   = 1
         missing_parameter = 2
@@ -228,7 +485,7 @@ CLASS lcl_updownci IMPLEMENTATION.
       BREAK-POINT.
     ENDIF.
 
-    lo_variant->get_info(
+    ro_variant->get_info(
       EXCEPTIONS
         could_not_read_variant = 1
         OTHERS                 = 2 ).
@@ -236,24 +493,43 @@ CLASS lcl_updownci IMPLEMENTATION.
       BREAK-POINT.
     ENDIF.
 
-    LOOP AT lo_variant->variant ASSIGNING <ls_variant>
-        WHERE testname IN s_class.
+  ENDMETHOD.
 
-*    <ls_variant>-testname
-*    <ls_variant>-attributes
-*    <ls_variant>-version
+  METHOD run.
+
+    DATA: lv_count   TYPE i,
+          lo_xml     TYPE REF TO lcl_xml,
+          lv_xml     TYPE string,
+          lo_variant TYPE REF TO cl_ci_checkvariant.
+
+    FIELD-SYMBOLS: <ls_variant> LIKE LINE OF lo_variant->variant.
+
+
+    lo_variant = read_variant( ).
+
+    CREATE OBJECT lo_xml.
+
+    LOOP AT lo_variant->variant ASSIGNING <ls_variant>
+        WHERE testname IN s_class.                      "#EC CI_HASHSEQ
 
       lv_count = lv_count + 1.
       show_progress( iv_current = lv_count
-                     iv_total = lines( lo_variant->variant )
-                     iv_class = <ls_variant>-testname ).
+                     iv_total   = lines( lo_variant->variant )
+                     iv_class   = <ls_variant>-testname ).
 
       IF NOT <ls_variant>-attributes IS INITIAL.
         handle( iv_class      = <ls_variant>-testname
-                iv_attributes = <ls_variant>-attributes ).
+                iv_attributes = <ls_variant>-attributes
+                iv_version    = <ls_variant>-version
+                io_xml        = lo_xml ).
+      ELSE.
+* todo
       ENDIF.
 
     ENDLOOP.
+
+    lv_xml = lo_xml->render( ).
+    download( lv_xml ).
 
   ENDMETHOD.
 
@@ -261,29 +537,29 @@ CLASS lcl_updownci IMPLEMENTATION.
 
     DATA: lv_include    TYPE program,
           lt_parameters TYPE ty_parameter_tt,
-          lt_import TYPE ty_parameter_tt,
+          lt_import     TYPE ty_parameter_tt,
           lt_types      TYPE ty_type_tt,
           lr_data       TYPE REF TO data,
           lt_source     TYPE abaptxt255_tab.
 
-    FIELD-SYMBOLS: <ls_type> LIKE LINE OF lt_types,
+    FIELD-SYMBOLS: <ls_type>   LIKE LINE OF lt_types,
                    <ls_import> LIKE LINE OF lt_import,
-                   <lg_any> TYPE any.
+                   <lg_data>   TYPE data.
 
 
     lv_include    = lcl_class=>find_include( iv_class ).
     lt_source     = read_source( lv_include ).
     lt_parameters = parse( lt_source ).
-    lt_types      = find_types( iv_class = iv_class
+    lt_types      = find_types( iv_class      = iv_class
                                 it_parameters = lt_parameters ).
 
     lr_data = create_structure( lt_types ).
-    ASSIGN lr_data->* TO <lg_any>.
+    ASSIGN lr_data->* TO <lg_data>.
 
     LOOP AT lt_types ASSIGNING <ls_type>.
       APPEND INITIAL LINE TO lt_import ASSIGNING <ls_import>.
       <ls_import>-name = <ls_type>-parameter.
-      CONCATENATE '<LG_ANY>' <ls_import>-name
+      CONCATENATE '<LG_DATA>' <ls_import>-name
         INTO <ls_import>-value SEPARATED BY '-'.
     ENDLOOP.
 
@@ -291,6 +567,10 @@ CLASS lcl_updownci IMPLEMENTATION.
     IF sy-subrc <> 0.
       BREAK-POINT.
     ENDIF.
+
+    io_xml->export( iv_testname = iv_class
+                    iv_version  = iv_version
+                    ig_data     = <lg_data> ).
 
   ENDMETHOD.
 
@@ -300,7 +580,7 @@ CLASS lcl_updownci IMPLEMENTATION.
           lr_structdescr TYPE REF TO cl_abap_structdescr.
 
     FIELD-SYMBOLS: <ls_component> LIKE LINE OF lt_components,
-                   <ls_type> LIKE LINE OF it_types.
+                   <ls_type>      LIKE LINE OF it_types.
 
 
     LOOP AT it_types ASSIGNING <ls_type>.
@@ -333,7 +613,7 @@ CLASS lcl_updownci IMPLEMENTATION.
         cancelled        = 1
         not_found        = 2
         permission_error = 3
-        OTHERS           = 4.
+        OTHERS           = 4. "#EC CI_SUBRC
     ASSERT sy-subrc = 0.
 
   ENDMETHOD.
@@ -350,7 +630,7 @@ CLASS lcl_updownci IMPLEMENTATION.
     CONCATENATE LINES OF it_source INTO lv_source.
 
     FIND FIRST OCCURRENCE OF 'import' IN lv_source
-      IGNORING CASE MATCH OFFSET lv_offset.
+      IGNORING CASE MATCH OFFSET lv_offset.                 "#EC NOTEXT
     IF sy-subrc <> 0.
       BREAK-POINT.
     ENDIF.
@@ -358,7 +638,7 @@ CLASS lcl_updownci IMPLEMENTATION.
     lv_source = lv_source+lv_offset.
 
     FIND FIRST OCCURRENCE OF 'from data buffer p_attributes' IN lv_source
-      IGNORING CASE MATCH OFFSET lv_offset.
+      IGNORING CASE MATCH OFFSET lv_offset.                 "#EC NOTEXT
     IF sy-subrc <> 0.
       BREAK-POINT.
     ENDIF.
@@ -409,12 +689,7 @@ CLASS lcl_updownci IMPLEMENTATION.
       ENDIF.
 
       READ TABLE lt_attr ASSIGNING <ls_attr> WITH KEY cmpname = lv_name.
-      IF sy-subrc <> 0 AND lv_name = 'TRANSPORT_CHECK'.
-* special case
-        lv_type = 'ABAP_BOOL'.
-      ELSEIF sy-subrc <> 0.
-        BREAK-POINT.
-      ELSE.
+      IF sy-subrc = 0.
         lv_type = <ls_attr>-type.
       ENDIF.
       IF lv_type IS INITIAL.
@@ -434,7 +709,7 @@ CLASS lcl_updownci IMPLEMENTATION.
 
   METHOD show_progress.
 
-    DATA: lv_f TYPE f,
+    DATA: lv_f   TYPE f,
           lv_pct TYPE i.
 
 
