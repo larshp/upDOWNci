@@ -36,7 +36,7 @@ SELECT-OPTIONS: s_class FOR seoclass-clsname.
 PARAMETERS: p_down TYPE c RADIOBUTTON GROUP g1 DEFAULT 'X',
             p_up TYPE c RADIOBUTTON GROUP g1.
 
-CLASS lcl_class DEFINITION.
+CLASS lcl_class DEFINITION FINAL.
 
   PUBLIC SECTION.
     CLASS-METHODS:
@@ -103,7 +103,38 @@ CLASS lcl_class IMPLEMENTATION.
 
 ENDCLASS.
 
-CLASS lcl_updownci DEFINITION.
+CLASS lcl_xml DEFINITION FINAL.
+
+  PUBLIC SECTION.
+    CLASS-METHODS:
+      export
+        IMPORTING ig_any TYPE any
+        RETURNING VALUE(rv_xml) TYPE string,
+      import
+        IMPORTING iv_xml TYPE string
+        CHANGING cv_any TYPE any.
+
+ENDCLASS.
+
+CLASS lcl_xml IMPLEMENTATION.
+
+  METHOD export.
+
+* todo
+    BREAK-POINT.
+
+  ENDMETHOD.
+
+  METHOD import.
+
+* todo
+    BREAK-POINT.
+
+  ENDMETHOD.
+
+ENDCLASS.
+
+CLASS lcl_updownci DEFINITION FINAL.
 
   PUBLIC SECTION.
     CLASS-METHODS:
@@ -122,6 +153,7 @@ CLASS lcl_updownci DEFINITION.
 
     TYPES:
       BEGIN OF ty_type,
+        parameter TYPE string,
         name TYPE string,
         type TYPE string,
         field TYPE string,
@@ -130,8 +162,9 @@ CLASS lcl_updownci DEFINITION.
     TYPES: ty_type_tt TYPE STANDARD TABLE OF ty_type WITH DEFAULT KEY.
 
     CLASS-METHODS:
-      find_parameters
+      handle
         IMPORTING iv_class TYPE seoclsname
+                  iv_attributes TYPE xstring
         RAISING cx_static_check,
       read_source
         IMPORTING iv_include TYPE program
@@ -147,7 +180,10 @@ CLASS lcl_updownci DEFINITION.
       show_progress
         IMPORTING iv_current TYPE i
                   iv_total TYPE i
-                  iv_class TYPE seoclsname.
+                  iv_class TYPE seoclsname,
+      create_structure
+        IMPORTING it_types TYPE ty_type_tt
+        RETURNING VALUE(rr_data) TYPE REF TO data.
 
 ENDCLASS.
 
@@ -172,8 +208,10 @@ CLASS lcl_updownci IMPLEMENTATION.
 
   METHOD run.
 
-    DATA: lv_count TYPE i,
+    DATA: lv_count   TYPE i,
           lo_variant TYPE REF TO cl_ci_checkvariant.
+
+    FIELD-SYMBOLS: <ls_variant> LIKE LINE OF lo_variant->variant.
 
 
     cl_ci_checkvariant=>get_ref(
@@ -198,7 +236,7 @@ CLASS lcl_updownci IMPLEMENTATION.
       BREAK-POINT.
     ENDIF.
 
-    LOOP AT lo_variant->variant ASSIGNING FIELD-SYMBOL(<ls_variant>)
+    LOOP AT lo_variant->variant ASSIGNING <ls_variant>
         WHERE testname IN s_class.
 
 *    <ls_variant>-testname
@@ -211,19 +249,26 @@ CLASS lcl_updownci IMPLEMENTATION.
                      iv_class = <ls_variant>-testname ).
 
       IF NOT <ls_variant>-attributes IS INITIAL.
-        find_parameters( <ls_variant>-testname ).
+        handle( iv_class      = <ls_variant>-testname
+                iv_attributes = <ls_variant>-attributes ).
       ENDIF.
 
     ENDLOOP.
 
   ENDMETHOD.
 
-  METHOD find_parameters.
+  METHOD handle.
 
     DATA: lv_include    TYPE program,
           lt_parameters TYPE ty_parameter_tt,
+          lt_import TYPE ty_parameter_tt,
           lt_types      TYPE ty_type_tt,
+          lr_data       TYPE REF TO data,
           lt_source     TYPE abaptxt255_tab.
+
+    FIELD-SYMBOLS: <ls_type> LIKE LINE OF lt_types,
+                   <ls_import> LIKE LINE OF lt_import,
+                   <lg_any> TYPE any.
 
 
     lv_include    = lcl_class=>find_include( iv_class ).
@@ -231,6 +276,48 @@ CLASS lcl_updownci IMPLEMENTATION.
     lt_parameters = parse( lt_source ).
     lt_types      = find_types( iv_class = iv_class
                                 it_parameters = lt_parameters ).
+
+    lr_data = create_structure( lt_types ).
+    ASSIGN lr_data->* TO <lg_any>.
+
+    LOOP AT lt_types ASSIGNING <ls_type>.
+      APPEND INITIAL LINE TO lt_import ASSIGNING <ls_import>.
+      <ls_import>-name = <ls_type>-parameter.
+      CONCATENATE '<LG_ANY>' <ls_import>-name
+        INTO <ls_import>-value SEPARATED BY '-'.
+    ENDLOOP.
+
+    IMPORT (lt_import) FROM DATA BUFFER iv_attributes.
+    IF sy-subrc <> 0.
+      BREAK-POINT.
+    ENDIF.
+
+  ENDMETHOD.
+
+  METHOD create_structure.
+
+    DATA: lt_components  TYPE cl_abap_structdescr=>component_table,
+          lr_structdescr TYPE REF TO cl_abap_structdescr.
+
+    FIELD-SYMBOLS: <ls_component> LIKE LINE OF lt_components,
+                   <ls_type> LIKE LINE OF it_types.
+
+
+    LOOP AT it_types ASSIGNING <ls_type>.
+      APPEND INITIAL LINE TO lt_components ASSIGNING <ls_component>.
+      <ls_component>-name = <ls_type>-name.
+      <ls_component>-type ?= cl_abap_typedescr=>describe_by_name( <ls_type>-type ).
+    ENDLOOP.
+
+    SORT lt_components BY name ASCENDING.
+    DELETE ADJACENT DUPLICATES FROM lt_components COMPARING name.
+
+    TRY.
+        lr_structdescr = cl_abap_structdescr=>create( lt_components ).
+        CREATE DATA rr_data TYPE HANDLE lr_structdescr.
+      CATCH cx_sy_struct_comp_name.
+        BREAK-POINT.
+    ENDTRY.
 
   ENDMETHOD.
 
@@ -301,15 +388,17 @@ CLASS lcl_updownci IMPLEMENTATION.
 
   METHOD find_types.
 
-    DATA: lv_name TYPE string,
+    DATA: lv_name  TYPE seocmpname,
           lv_field TYPE string,
-          lt_attributes TYPE seo_attributes.
+          lv_type  TYPE string,
+          lt_attr  TYPE seo_attributes.
 
-    FIELD-SYMBOLS: <ls_attr> LIKE LINE OF lt_attributes,
+    FIELD-SYMBOLS: <ls_type> LIKE LINE OF rt_types,
+                   <ls_attr> LIKE LINE OF lt_attr,
                    <ls_parameter> LIKE LINE OF it_parameters.
 
 
-    lt_attributes = lcl_class=>attributes( iv_class ).
+    lt_attr = lcl_class=>attributes( iv_class ).
 
     LOOP AT it_parameters ASSIGNING <ls_parameter>.
       IF <ls_parameter>-value CA '-'.
@@ -319,12 +408,26 @@ CLASS lcl_updownci IMPLEMENTATION.
         CLEAR lv_field.
       ENDIF.
 
-      READ TABLE lt_attributes ASSIGNING <ls_attr> WITH KEY cmpname = lv_name.
+      READ TABLE lt_attr ASSIGNING <ls_attr> WITH KEY cmpname = lv_name.
       IF sy-subrc <> 0 AND lv_name = 'TRANSPORT_CHECK'.
 * special case
+        lv_type = 'ABAP_BOOL'.
       ELSEIF sy-subrc <> 0.
         BREAK-POINT.
+      ELSE.
+        lv_type = <ls_attr>-type.
       ENDIF.
+      IF lv_type IS INITIAL.
+* special case
+        lv_type = 'ABAP_BOOL'.
+      ENDIF.
+
+      APPEND INITIAL LINE TO rt_types ASSIGNING <ls_type>.
+      <ls_type>-parameter = <ls_parameter>-name.
+      <ls_type>-name = lv_name.
+      <ls_type>-type = lv_type.
+      <ls_type>-field = lv_field.
+
     ENDLOOP.
 
   ENDMETHOD.
