@@ -113,16 +113,17 @@ CLASS lcl_xml DEFINITION FINAL.
     METHODS:
       constructor
         IMPORTING iv_xml TYPE string OPTIONAL,
-      export
+      write_variant
         IMPORTING ig_data     TYPE data OPTIONAL
                   iv_testname TYPE sci_tstval-testname
                   iv_version  TYPE sci_tstval-version,
       read_variant
-        EXPORTING ei_attributes TYPE REF TO if_ixml_element
+        EXPORTING ei_attributes TYPE REF TO if_ixml_node
                   ev_testname   TYPE sci_tstval-testname
                   ev_version    TYPE sci_tstval-version,
       read_attributes
-        CHANGING ig_data TYPE data,
+        IMPORTING ii_attributes TYPE REF TO if_ixml_node
+        CHANGING  cg_data       TYPE data,
       render
         RETURNING VALUE(rv_xml) TYPE string.
 
@@ -143,17 +144,20 @@ CLASS lcl_xml DEFINITION FINAL.
         IMPORTING ig_data   TYPE data
                   ii_parent TYPE REF TO if_ixml_element,
       structure_import
-        CHANGING cg_data TYPE data,
+        IMPORTING ii_parent TYPE REF TO if_ixml_node
+        CHANGING  cg_data   TYPE data,
       table_export
         IMPORTING it_data   TYPE STANDARD TABLE
                   ii_parent TYPE REF TO if_ixml_element,
       table_import
-        CHANGING ct_data TYPE STANDARD TABLE,
+        IMPORTING ii_parent TYPE REF TO if_ixml_node
+        CHANGING  ct_data   TYPE STANDARD TABLE,
       simple_export
-        IMPORTING ig_data   TYPE simple
+        IMPORTING iv_data   TYPE simple
                   ii_parent TYPE REF TO if_ixml_element,
       simple_import
-        CHANGING cg_data TYPE simple,
+        IMPORTING ii_parent TYPE REF TO if_ixml_node
+        CHANGING  cv_data   TYPE simple,
       error
         IMPORTING ii_parser TYPE REF TO if_ixml_parser.
 
@@ -162,8 +166,6 @@ ENDCLASS.
 CLASS lcl_xml IMPLEMENTATION.
 
   METHOD constructor.
-
-    CONSTANTS: c_root TYPE string VALUE 'VARIANT'.
 
     DATA: li_stream_factory TYPE REF TO if_ixml_stream_factory,
           li_istream        TYPE REF TO if_ixml_istream,
@@ -179,7 +181,6 @@ CLASS lcl_xml IMPLEMENTATION.
       li_parser = mi_ixml->create_parser( stream_factory = li_stream_factory
                                           istream        = li_istream
                                           document       = mi_xml_doc ).
-      li_parser->set_normalizing( is_normalizing = abap_false ).
       IF li_parser->parse( ) <> 0.
         error( li_parser ).
       ENDIF.
@@ -189,7 +190,7 @@ CLASS lcl_xml IMPLEMENTATION.
       mi_root = mi_xml_doc->get_first_child( ).
       mi_iterator = mi_root->get_children( )->create_iterator( ).
     ELSE.
-      mi_root = mi_xml_doc->create_element( c_root ).
+      mi_root = mi_xml_doc->create_element( 'VARIANT' ).
       mi_xml_doc->append_child( mi_root ).
     ENDIF.
 
@@ -228,7 +229,7 @@ CLASS lcl_xml IMPLEMENTATION.
 
   ENDMETHOD.
 
-  METHOD export.
+  METHOD write_variant.
 
     DATA: lv_name   TYPE string,
           lv_string TYPE string,
@@ -260,8 +261,7 @@ CLASS lcl_xml IMPLEMENTATION.
 
   METHOD read_variant.
 
-    DATA: lv_name  TYPE string,
-          li_child TYPE REF TO if_ixml_node.
+    DATA: li_child TYPE REF TO if_ixml_node.
 
 
     CLEAR ev_testname.
@@ -271,11 +271,11 @@ CLASS lcl_xml IMPLEMENTATION.
       RETURN.
     ENDIF.
 
-    li_child = mi_iterator->get_next( ). " skip text node
-
     ev_testname = li_child->get_name( ).
     ev_version = find_node( ii_node = li_child
                             iv_name = 'VERSION' )->get_value( ).
+    ei_attributes = find_node( ii_node = li_child
+                                iv_name = 'ATTRIBUTES' ).
 
   ENDMETHOD.
 
@@ -299,7 +299,11 @@ CLASS lcl_xml IMPLEMENTATION.
 
   METHOD read_attributes.
 
-* todo
+    structure_import(
+      EXPORTING
+        ii_parent = ii_attributes
+      CHANGING
+        cg_data   = cg_data ).
 
   ENDMETHOD.
 
@@ -354,7 +358,7 @@ CLASS lcl_xml IMPLEMENTATION.
           structure_export( ig_data   = <lg_line>
                             ii_parent = li_parent ).
         WHEN cl_abap_typedescr=>kind_elem.
-          simple_export( ig_data   = <lg_line>
+          simple_export( iv_data   = <lg_line>
                          ii_parent = li_parent ).
         WHEN OTHERS.
           BREAK-POINT.
@@ -364,7 +368,45 @@ CLASS lcl_xml IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD table_import.
-* todo
+
+    DATA: lv_kind        TYPE abap_typecategory,
+          li_node        TYPE REF TO if_ixml_node,
+          lo_data_descr  TYPE REF TO cl_abap_datadescr,
+          li_iterator    TYPE REF TO if_ixml_node_iterator,
+          lo_table_descr TYPE REF TO cl_abap_tabledescr.
+
+    FIELD-SYMBOLS: <lg_line> TYPE any.
+
+
+    lo_table_descr ?= cl_abap_typedescr=>describe_by_data( ct_data ).
+    lo_data_descr = lo_table_descr->get_table_line_type( ).
+    lv_kind = lo_data_descr->kind.
+
+    li_iterator = ii_parent->get_children( )->create_iterator( ).
+    li_node = li_iterator->get_next( ).
+
+    CLEAR ct_data.
+
+    WHILE NOT li_node IS INITIAL.
+      APPEND INITIAL LINE TO ct_data ASSIGNING <lg_line>.
+
+      CASE lv_kind.
+        WHEN cl_abap_typedescr=>kind_table.
+          table_import( EXPORTING ii_parent = li_node
+                        CHANGING ct_data   = <lg_line> ).
+        WHEN cl_abap_typedescr=>kind_struct.
+          structure_import( EXPORTING ii_parent = li_node
+                            CHANGING cg_data   = <lg_line> ).
+        WHEN cl_abap_typedescr=>kind_elem.
+          simple_import( EXPORTING ii_parent = li_node
+                         CHANGING cv_data   = <lg_line> ).
+        WHEN OTHERS.
+          BREAK-POINT.
+      ENDCASE.
+
+      li_node = li_iterator->get_next( ).
+    ENDWHILE.
+
   ENDMETHOD.
 
   METHOD simple_export.
@@ -373,14 +415,24 @@ CLASS lcl_xml IMPLEMENTATION.
           li_text   TYPE REF TO if_ixml_text.
 
 
-    lv_string = ig_data.
+    lv_string = iv_data.
     li_text = mi_xml_doc->create_text( lv_string ).
     ii_parent->append_child( li_text ).
 
   ENDMETHOD.
 
   METHOD simple_import.
-* todo
+
+    DATA: lv_string TYPE string.
+
+
+    IF ii_parent IS BOUND.
+      lv_string = ii_parent->get_value( ).
+      cv_data = lv_string.
+    ELSE.
+      CLEAR cv_data.
+    ENDIF.
+
   ENDMETHOD.
 
   METHOD structure_export.
@@ -411,7 +463,7 @@ CLASS lcl_xml IMPLEMENTATION.
           structure_export( ig_data   = <lg_any>
                             ii_parent = li_parent ).
         WHEN cl_abap_typedescr=>kind_elem.
-          simple_export( ig_data   = <lg_any>
+          simple_export( iv_data   = <lg_any>
                          ii_parent = li_parent ).
         WHEN OTHERS.
           BREAK-POINT.
@@ -421,7 +473,41 @@ CLASS lcl_xml IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD structure_import.
-* todo
+
+    DATA: lo_structdescr TYPE REF TO cl_abap_structdescr,
+          li_parent      TYPE REF TO if_ixml_node,
+          lv_name        TYPE string,
+          lo_typedescr   TYPE REF TO cl_abap_typedescr.
+
+    FIELD-SYMBOLS: <ls_comp> LIKE LINE OF lo_structdescr->components,
+                   <lg_any>  TYPE any.
+
+
+    lo_structdescr ?= cl_abap_typedescr=>describe_by_data( cg_data ).
+
+    LOOP AT lo_structdescr->components ASSIGNING <ls_comp>.
+      ASSIGN COMPONENT <ls_comp>-name OF STRUCTURE cg_data TO <lg_any>.
+
+      lv_name = <ls_comp>-name.
+      li_parent = find_node( ii_node = ii_parent
+                             iv_name = lv_name ).
+
+      lo_typedescr = cl_abap_typedescr=>describe_by_data( <lg_any> ).
+      CASE lo_typedescr->kind.
+        WHEN cl_abap_typedescr=>kind_table.
+          table_import( EXPORTING ii_parent = li_parent
+                        CHANGING ct_data    = <lg_any> ).
+        WHEN cl_abap_typedescr=>kind_struct.
+          structure_import( EXPORTING ii_parent = li_parent
+                            CHANGING cg_data    = <lg_any> ).
+        WHEN cl_abap_typedescr=>kind_elem.
+          simple_import( EXPORTING ii_parent = li_parent
+                         CHANGING cv_data    = <lg_any> ).
+        WHEN OTHERS.
+          BREAK-POINT.
+      ENDCASE.
+    ENDLOOP.
+
   ENDMETHOD.
 
 ENDCLASS.
@@ -621,16 +707,18 @@ CLASS lcl_updownci DEFINITION FINAL.
 
     TYPES: ty_type_tt TYPE STANDARD TABLE OF ty_type WITH DEFAULT KEY.
 
+    CLASS-DATA:
+      go_xml TYPE REF TO lcl_xml.
+
     CLASS-METHODS:
       get_check_version
         IMPORTING iv_testname       TYPE sci_tstval-testname
         RETURNING VALUE(rv_version) TYPE sci_tstval-version,
       read_variant
         RETURNING VALUE(ro_variant) TYPE REF TO cl_ci_checkvariant,
-      handle
+      download_attributes
         IMPORTING iv_class      TYPE seoclsname
                   iv_attributes TYPE xstring
-                  io_xml        TYPE REF TO lcl_xml
                   iv_version    TYPE sci_tstval-version
         RAISING   cx_static_check,
       build_memory
@@ -640,10 +728,11 @@ CLASS lcl_updownci DEFINITION FINAL.
         RAISING   cx_static_check,
       upload_attributes
         IMPORTING
-          iv_testname   TYPE sci_tstval-testname
-          ii_attributes TYPE REF TO if_ixml_element
+                  iv_testname   TYPE sci_tstval-testname
+                  ii_attributes TYPE REF TO if_ixml_node
         CHANGING
-          ct_variant    TYPE sci_tstvar,
+                  ct_variant    TYPE sci_tstvar
+        RAISING   cx_static_check,
       read_source
         IMPORTING iv_include       TYPE program
         RETURNING VALUE(rt_source) TYPE abaptxt255_tab,
@@ -668,7 +757,70 @@ ENDCLASS.
 CLASS lcl_updownci IMPLEMENTATION.
 
   METHOD upload_attributes.
-* todo
+
+    DATA: lt_export     TYPE ty_parameter_tt,
+          lv_attributes TYPE xstring,
+          ls_variant    LIKE LINE OF ct_variant,
+          lr_data       TYPE REF TO data.
+
+    FIELD-SYMBOLS: <ls_variant>  LIKE LINE OF ct_variant,
+                   <lg_data>     TYPE data,
+                   <lg_data_old> TYPE data.
+
+
+    READ TABLE ct_variant ASSIGNING <ls_variant> WITH KEY testname = iv_testname.
+    IF sy-subrc = 0.
+      WRITE: / 'Found'.                                     "#EC NOTEXT
+      IF <ls_variant>-attributes IS INITIAL.
+        WRITE: / 'No attributes'.                           "#EC NOTEXT
+        RETURN.
+      ENDIF.
+    ELSE.
+      WRITE: / 'Not found, creating'.                       "#EC NOTEXT
+
+      CLEAR ls_variant.
+      ls_variant-testname = iv_testname.
+      ls_variant-version = get_check_version( iv_testname ).
+      INSERT ls_variant INTO TABLE ct_variant.
+
+      READ TABLE ct_variant ASSIGNING <ls_variant> WITH KEY testname = iv_testname.
+      ASSERT sy-subrc = 0.
+    ENDIF.
+
+    build_memory( EXPORTING iv_class  = iv_testname
+                  IMPORTING er_data   = lr_data
+                            et_memory = lt_export ).
+    ASSIGN lr_data->* TO <lg_data>.
+    ASSERT sy-subrc = 0.
+
+    build_memory( EXPORTING iv_class  = iv_testname
+                  IMPORTING er_data   = lr_data ).
+    ASSIGN lr_data->* TO <lg_data_old>.
+    ASSERT sy-subrc = 0.
+
+    IF NOT <ls_variant>-attributes IS INITIAL.
+      IMPORT (lt_export) FROM DATA BUFFER <ls_variant>-attributes.
+      IF sy-subrc <> 0.
+        BREAK-POINT.
+      ENDIF.
+      <lg_data_old> = <lg_data>.
+    ENDIF.
+
+    CLEAR <lg_data>.
+    go_xml->read_attributes(
+      EXPORTING
+        ii_attributes = ii_attributes
+      CHANGING
+        cg_data       = <lg_data> ).
+
+    EXPORT (lt_export) TO DATA BUFFER lv_attributes.
+    IF <lg_data> <> <lg_data_old>.
+      WRITE: / 'Attributes mismatch' COLOR 6.               "#EC NOTEXT
+      <ls_variant>-attributes = lv_attributes.
+    ELSE.
+      WRITE: / 'Attributes match'.                          "#EC NOTEXT
+    ENDIF.
+
   ENDMETHOD.
 
   METHOD get_check_version.
@@ -678,7 +830,11 @@ CLASS lcl_updownci IMPLEMENTATION.
     FIELD-SYMBOLS: <lv_version> TYPE sci_vers.
 
 
-    CREATE OBJECT lo_obj TYPE (iv_testname).
+    TRY.
+        CREATE OBJECT lo_obj TYPE (iv_testname).
+      CATCH cx_sy_create_object_error.
+        BREAK-POINT.
+    ENDTRY.
 
     ASSIGN lo_obj->('VERSION') TO <lv_version>.
     ASSERT sy-subrc = 0.
@@ -733,7 +889,6 @@ CLASS lcl_updownci IMPLEMENTATION.
   METHOD download.
 
     DATA: lv_count   TYPE i,
-          lo_xml     TYPE REF TO lcl_xml,
           lv_xml     TYPE string,
           lo_variant TYPE REF TO cl_ci_checkvariant.
 
@@ -742,7 +897,7 @@ CLASS lcl_updownci IMPLEMENTATION.
 
     lo_variant = read_variant( ).
 
-    CREATE OBJECT lo_xml.
+    CREATE OBJECT go_xml.
 
     LOOP AT lo_variant->variant ASSIGNING <ls_variant>
         WHERE testname IN s_class.                      "#EC CI_HASHSEQ
@@ -752,14 +907,13 @@ CLASS lcl_updownci IMPLEMENTATION.
                      iv_total   = lines( lo_variant->variant )
                      iv_class   = <ls_variant>-testname ).
 
-      handle( iv_class      = <ls_variant>-testname
+      download_attributes( iv_class      = <ls_variant>-testname
               iv_attributes = <ls_variant>-attributes
-              iv_version    = <ls_variant>-version
-              io_xml        = lo_xml ).
+              iv_version    = <ls_variant>-version ).
 
     ENDLOOP.
 
-    lv_xml = lo_xml->render( ).
+    lv_xml = go_xml->render( ).
     lcl_file=>download( lv_xml ).
 
   ENDMETHOD.
@@ -767,10 +921,9 @@ CLASS lcl_updownci IMPLEMENTATION.
   METHOD upload.
 
     DATA: lt_variant    TYPE sci_tstvar,
-          lo_xml        TYPE REF TO lcl_xml,
           lv_xml        TYPE string,
           lo_variant    TYPE REF TO cl_ci_checkvariant,
-          li_attributes TYPE REF TO if_ixml_element,
+          li_attributes TYPE REF TO if_ixml_node,
           lv_testname   TYPE sci_tstval-testname,
           lv_version    TYPE sci_tstval-version.
 
@@ -781,13 +934,14 @@ CLASS lcl_updownci IMPLEMENTATION.
     ENDIF.
 
     lo_variant = read_variant( ).
+    lo_variant->enter_change( ).
     lt_variant = lo_variant->variant.
 
-    CREATE OBJECT lo_xml
+    CREATE OBJECT go_xml
       EXPORTING
         iv_xml = lv_xml.
 
-    lo_xml->read_variant(
+    go_xml->read_variant(
       IMPORTING
         ei_attributes = li_attributes
         ev_testname   = lv_testname
@@ -795,9 +949,9 @@ CLASS lcl_updownci IMPLEMENTATION.
     WHILE NOT lv_testname IS INITIAL.
       WRITE: / lv_testname, lv_version.
       IF get_check_version( lv_testname ) <> lv_version.
-        WRITE: / 'Version mismatch'.
+        WRITE: / 'Version mismatch'.                        "#EC NOTEXT
       ELSE.
-        WRITE: / 'Version match'.
+        WRITE: / 'Version match'.                           "#EC NOTEXT
         upload_attributes(
           EXPORTING
             iv_testname   = lv_testname
@@ -807,7 +961,7 @@ CLASS lcl_updownci IMPLEMENTATION.
       ENDIF.
       WRITE: /.
 
-      lo_xml->read_variant(
+      go_xml->read_variant(
         IMPORTING
           ei_attributes = li_attributes
           ev_testname   = lv_testname
@@ -816,6 +970,8 @@ CLASS lcl_updownci IMPLEMENTATION.
 
     IF p_test = abap_false.
       lo_variant->save( lt_variant ).
+    ELSE.
+      lo_variant->leave_change( ).
     ENDIF.
 
   ENDMETHOD.
@@ -853,7 +1009,7 @@ CLASS lcl_updownci IMPLEMENTATION.
 
   ENDMETHOD.
 
-  METHOD handle.
+  METHOD download_attributes.
 
     DATA: lt_import TYPE ty_parameter_tt,
           lr_data   TYPE REF TO data.
@@ -862,8 +1018,8 @@ CLASS lcl_updownci IMPLEMENTATION.
 
 
     IF iv_attributes IS INITIAL.
-      io_xml->export( iv_testname = iv_class
-                      iv_version  = iv_version ).
+      go_xml->write_variant( iv_testname = iv_class
+                             iv_version  = iv_version ).
     ELSE.
       build_memory(
         EXPORTING
@@ -878,9 +1034,9 @@ CLASS lcl_updownci IMPLEMENTATION.
         BREAK-POINT.
       ENDIF.
 
-      io_xml->export( iv_testname = iv_class
-                      iv_version  = iv_version
-                      ig_data     = <lg_data> ).
+      go_xml->write_variant( iv_testname = iv_class
+                             iv_version  = iv_version
+                             ig_data     = <lg_data> ).
     ENDIF.
 
   ENDMETHOD.
@@ -888,7 +1044,7 @@ CLASS lcl_updownci IMPLEMENTATION.
   METHOD create_structure.
 
     DATA: lt_components  TYPE cl_abap_structdescr=>component_table,
-          lr_structdescr TYPE REF TO cl_abap_structdescr.
+          lo_structdescr TYPE REF TO cl_abap_structdescr.
 
     FIELD-SYMBOLS: <ls_component> LIKE LINE OF lt_components,
                    <ls_type>      LIKE LINE OF it_types.
@@ -904,8 +1060,8 @@ CLASS lcl_updownci IMPLEMENTATION.
     DELETE ADJACENT DUPLICATES FROM lt_components COMPARING name.
 
     TRY.
-        lr_structdescr = cl_abap_structdescr=>create( lt_components ).
-        CREATE DATA rr_data TYPE HANDLE lr_structdescr.
+        lo_structdescr = cl_abap_structdescr=>create( lt_components ).
+        CREATE DATA rr_data TYPE HANDLE lo_structdescr.
       CATCH cx_sy_struct_comp_name.
         BREAK-POINT.
     ENDTRY.
