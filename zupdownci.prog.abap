@@ -1,7 +1,10 @@
 REPORT zupdownci.
 
+*********************************************************************************
+*
+* Upload and download SAP Code Inspector variants in XML format
 * see https://github.com/larshp/upDOWNci
-
+*
 *********************************************************************************
 * The MIT License (MIT)
 *
@@ -107,9 +110,10 @@ CLASS lcl_xml DEFINITION FINAL.
 
   PUBLIC SECTION.
     METHODS:
-      constructor,
+      constructor
+        IMPORTING iv_xml TYPE string OPTIONAL,
       export
-        IMPORTING ig_data       TYPE data
+        IMPORTING ig_data       TYPE data OPTIONAL
                   iv_testname   TYPE sci_tstval-testname
                   iv_version    TYPE sci_tstval-version
         RETURNING VALUE(rv_xml) TYPE string,
@@ -123,6 +127,7 @@ CLASS lcl_xml DEFINITION FINAL.
 
     DATA:
       mi_ixml    TYPE REF TO if_ixml,
+      mi_root    TYPE REF TO if_ixml_element,
       mi_xml_doc TYPE REF TO if_ixml_document.
 
     METHODS:
@@ -140,7 +145,9 @@ CLASS lcl_xml DEFINITION FINAL.
         IMPORTING ig_data   TYPE simple
                   ii_parent TYPE REF TO if_ixml_element,
       simple_import
-        CHANGING cg_data TYPE simple.
+        CHANGING cg_data TYPE simple,
+      error
+        IMPORTING ii_parser TYPE REF TO if_ixml_parser.
 
 ENDCLASS.
 
@@ -148,8 +155,63 @@ CLASS lcl_xml IMPLEMENTATION.
 
   METHOD constructor.
 
+    DATA: li_stream_factory TYPE REF TO if_ixml_stream_factory,
+          li_istream        TYPE REF TO if_ixml_istream,
+          li_parser         TYPE REF TO if_ixml_parser.
+
+
     mi_ixml = cl_ixml=>create( ).
     mi_xml_doc = mi_ixml->create_document( ).
+
+    IF iv_xml IS SUPPLIED.
+      li_stream_factory = mi_ixml->create_stream_factory( ).
+      li_istream = li_stream_factory->create_istream_string( iv_xml ).
+      li_parser = mi_ixml->create_parser( stream_factory = li_stream_factory
+                                          istream        = li_istream
+                                          document       = mi_xml_doc ).
+      li_parser->set_normalizing( is_normalizing = abap_false ).
+      IF li_parser->parse( ) <> 0.
+        error( li_parser ).
+      ENDIF.
+
+      li_istream->close( ).
+    ELSE.
+      mi_root = mi_xml_doc->create_element( 'VARIANT' ).
+      mi_xml_doc->append_child( mi_root ).
+    ENDIF.
+
+  ENDMETHOD.
+
+  METHOD error.
+
+    DATA: lv_error TYPE i,
+          lv_txt1  TYPE string,
+          lv_txt2  TYPE string,
+          lv_txt3  TYPE string,
+          lv_times TYPE i,
+          li_error TYPE REF TO if_ixml_parse_error.
+
+
+    IF ii_parser->num_errors( ) <> 0.
+      lv_times = ii_parser->num_errors( ).
+      DO lv_times TIMES.
+        lv_error = sy-index - 1.
+        li_error = ii_parser->get_error( lv_error ).
+
+        lv_txt1 = li_error->get_column( ).
+        CONCATENATE 'Column:' lv_txt1 INTO lv_txt1.         "#EC NOTEXT
+        lv_txt2 = li_error->get_line( ).
+        CONCATENATE 'Line:' lv_txt2 INTO lv_txt2.           "#EC NOTEXT
+        lv_txt3 = li_error->get_reason( ).
+
+        CALL FUNCTION 'POPUP_TO_INFORM'
+          EXPORTING
+            titel = 'Error from XML parser'                 "#EC NOTEXT
+            txt1  = lv_txt1
+            txt2  = lv_txt2
+            txt3  = lv_txt3.
+      ENDDO.
+    ENDIF.
 
   ENDMETHOD.
 
@@ -165,7 +227,7 @@ CLASS lcl_xml IMPLEMENTATION.
 
     lv_name = iv_testname.
     li_test = mi_xml_doc->create_element( lv_name ).
-    mi_xml_doc->append_child( li_test ).
+    mi_root->append_child( li_test ).
 
     li_vers = mi_xml_doc->create_element( 'VERSION' ).
     lv_string = iv_version.
@@ -176,8 +238,10 @@ CLASS lcl_xml IMPLEMENTATION.
     li_attr = mi_xml_doc->create_element( 'ATTRIBUTES' ).
     li_test->append_child( li_attr ).
 
-    structure_export( ig_data   = ig_data
-                      ii_parent = li_attr ).
+    IF ig_data IS SUPPLIED.
+      structure_export( ig_data   = ig_data
+                        ii_parent = li_attr ).
+    ENDIF.
 
   ENDMETHOD.
 
@@ -202,7 +266,7 @@ CLASS lcl_xml IMPLEMENTATION.
     li_renderer->render( ).
 
 * this is the wrong way to do it, but it makes it easier to debug
-* when its possible to see the XML contents in the debugger
+* when its possible to see the XML as text in the debugger
     REPLACE FIRST OCCURRENCE
       OF '<?xml version="1.0" encoding="utf-16"?>'
       IN rv_xml
@@ -308,11 +372,179 @@ CLASS lcl_xml IMPLEMENTATION.
 
 ENDCLASS.
 
+CLASS lcl_file DEFINITION FINAL.
+
+  PUBLIC SECTION.
+    CLASS-METHODS:
+      download
+        IMPORTING iv_xml TYPE string
+        RAISING   cx_bcs,
+      upload
+        RETURNING VALUE(rv_xml) TYPE string
+        RAISING   cx_bcs.
+
+ENDCLASS.
+
+CLASS lcl_file IMPLEMENTATION.
+
+  METHOD upload.
+
+    DATA: lv_action     TYPE i,
+          lt_data       TYPE TABLE OF text255,
+          lv_filename   TYPE string,
+          lt_file_table TYPE filetable,
+          ls_file_table LIKE LINE OF lt_file_table,
+          lv_rc         TYPE i.
+
+
+    cl_gui_frontend_services=>file_open_dialog(
+      EXPORTING
+        default_extension       = 'xml'
+      CHANGING
+        file_table              = lt_file_table
+        rc                      = lv_rc
+        user_action             = lv_action
+      EXCEPTIONS
+        file_open_dialog_failed = 1
+        cntl_error              = 2
+        error_no_gui            = 3
+        not_supported_by_gui    = 4
+        OTHERS                  = 5 ).
+    IF sy-subrc <> 0.
+      BREAK-POINT.
+    ENDIF.
+    IF lv_action = cl_gui_frontend_services=>action_cancel.
+      RETURN.
+    ENDIF.
+
+    ASSERT lines( lt_file_table ) = 1.
+    READ TABLE lt_file_table INDEX 1 INTO ls_file_table.
+    ASSERT sy-subrc = 0.
+    lv_filename = ls_file_table-filename.
+
+    cl_gui_frontend_services=>gui_upload(
+      EXPORTING
+        filename                = lv_filename
+      CHANGING
+        data_tab                = lt_data
+      EXCEPTIONS
+        file_open_error         = 1
+        file_read_error         = 2
+        no_batch                = 3
+        gui_refuse_filetransfer = 4
+        invalid_type            = 5
+        no_authority            = 6
+        unknown_error           = 7
+        bad_data_format         = 8
+        header_not_allowed      = 9
+        separator_not_allowed   = 10
+        header_too_long         = 11
+        unknown_dp_error        = 12
+        access_denied           = 13
+        dp_out_of_memory        = 14
+        disk_full               = 15
+        dp_timeout              = 16
+        not_supported_by_gui    = 17
+        error_no_gui            = 18
+        OTHERS                  = 19 ).
+    IF sy-subrc <> 0.
+      BREAK-POINT.
+    ENDIF.
+
+    CONCATENATE LINES OF lt_data INTO rv_xml.
+
+  ENDMETHOD.
+
+  METHOD download.
+
+    DATA: lt_rawdata    TYPE solix_tab,
+          lv_action     TYPE i,
+          lv_so_obj_len TYPE so_obj_len,
+          lv_size       TYPE i,
+          lv_filename   TYPE string,
+          lv_default    TYPE string,
+          lv_path       TYPE string,
+          lv_fullpath   TYPE string.
+
+
+    lv_default = p_name.
+
+    cl_gui_frontend_services=>file_save_dialog(
+      EXPORTING
+        default_extension    = 'xml'
+        default_file_name    = lv_default
+      CHANGING
+        filename             = lv_filename
+        path                 = lv_path
+        fullpath             = lv_fullpath
+        user_action          = lv_action
+      EXCEPTIONS
+        cntl_error           = 1
+        error_no_gui         = 2
+        not_supported_by_gui = 3
+        OTHERS               = 4 ).                         "#EC NOTEXT
+    IF sy-subrc <> 0.
+      BREAK-POINT.
+    ENDIF.
+    IF lv_action = cl_gui_frontend_services=>action_cancel.
+      RETURN.
+    ENDIF.
+
+    cl_bcs_convert=>string_to_solix(
+      EXPORTING
+        iv_string = iv_xml
+      IMPORTING
+        et_solix  = lt_rawdata
+        ev_size   = lv_so_obj_len ).
+    lv_size = lv_so_obj_len.
+
+    cl_gui_frontend_services=>gui_download(
+      EXPORTING
+      bin_filesize = lv_size
+        filename                  = lv_fullpath
+        filetype                  = 'BIN'
+      CHANGING
+        data_tab                  = lt_rawdata
+      EXCEPTIONS
+        file_write_error          = 1
+        no_batch                  = 2
+        gui_refuse_filetransfer   = 3
+        invalid_type              = 4
+        no_authority              = 5
+        unknown_error             = 6
+        header_not_allowed        = 7
+        separator_not_allowed     = 8
+        filesize_not_allowed      = 9
+        header_too_long           = 10
+        dp_error_create           = 11
+        dp_error_send             = 12
+        dp_error_write            = 13
+        unknown_dp_error          = 14
+        access_denied             = 15
+        dp_out_of_memory          = 16
+        disk_full                 = 17
+        dp_timeout                = 18
+        file_not_found            = 19
+        dataprovider_exception    = 20
+        control_flush_error       = 21
+        not_supported_by_gui      = 22
+        error_no_gui              = 23
+        OTHERS                    = 24 ).
+    IF sy-subrc <> 0.
+      BREAK-POINT.
+    ENDIF.
+
+  ENDMETHOD.
+
+ENDCLASS.
+
 CLASS lcl_updownci DEFINITION FINAL.
 
   PUBLIC SECTION.
     CLASS-METHODS:
-      run
+      download
+        RAISING cx_static_check,
+      upload
         RAISING cx_static_check,
       initialize.
 
@@ -336,9 +568,6 @@ CLASS lcl_updownci DEFINITION FINAL.
     TYPES: ty_type_tt TYPE STANDARD TABLE OF ty_type WITH DEFAULT KEY.
 
     CLASS-METHODS:
-      download
-        IMPORTING iv_xml TYPE string
-        RAISING   cx_bcs,
       read_variant
         RETURNING VALUE(ro_variant) TYPE REF TO cl_ci_checkvariant,
       handle
@@ -346,6 +575,11 @@ CLASS lcl_updownci DEFINITION FINAL.
                   iv_attributes TYPE xstring
                   io_xml        TYPE REF TO lcl_xml
                   iv_version    TYPE sci_tstval-version
+        RAISING   cx_static_check,
+      build_memory
+        IMPORTING iv_class  TYPE seoclsname
+        EXPORTING er_data   TYPE REF TO data
+                  et_memory TYPE ty_parameter_tt
         RAISING   cx_static_check,
       read_source
         IMPORTING iv_include       TYPE program
@@ -387,88 +621,6 @@ CLASS lcl_updownci IMPLEMENTATION.
 
   ENDMETHOD.
 
-  METHOD download.
-* todo, move to file class, along with method upload()
-    DATA: lt_rawdata    TYPE solix_tab,
-          lv_action     TYPE i,
-          lv_so_obj_len TYPE so_obj_len,
-          lv_size       TYPE i,
-          lv_filename   TYPE string,
-          lv_default    TYPE string,
-          lv_path       TYPE string,
-          lv_fullpath   TYPE string.
-
-
-    lv_default = p_name.
-
-    cl_gui_frontend_services=>file_save_dialog(
-      EXPORTING
-        window_title         = 'Export XML'
-        default_extension    = 'xml'
-        default_file_name    = lv_default
-      CHANGING
-        filename             = lv_filename
-        path                 = lv_path
-        fullpath             = lv_fullpath
-        user_action          = lv_action
-      EXCEPTIONS
-        cntl_error           = 1
-        error_no_gui         = 2
-        not_supported_by_gui = 3
-        OTHERS               = 4 ).                         "#EC NOTEXT
-    IF sy-subrc <> 0.
-      BREAK-POINT.
-    ENDIF.
-    IF lv_action = cl_gui_frontend_services=>action_cancel.
-      RETURN.
-    ENDIF.
-
-    cl_bcs_convert=>string_to_solix(
-      EXPORTING
-        iv_string = iv_xml
-      IMPORTING
-        et_solix = lt_rawdata
-        ev_size = lv_so_obj_len ).
-    lv_size = lv_so_obj_len.
-
-    cl_gui_frontend_services=>gui_download(
-      EXPORTING
-      bin_filesize = lv_size
-        filename                  = lv_fullpath
-        filetype                  = 'BIN'
-      CHANGING
-        data_tab                  = lt_rawdata
-      EXCEPTIONS
-        file_write_error          = 1
-        no_batch                  = 2
-        gui_refuse_filetransfer   = 3
-        invalid_type              = 4
-        no_authority              = 5
-        unknown_error             = 6
-        header_not_allowed        = 7
-        separator_not_allowed     = 8
-        filesize_not_allowed      = 9
-        header_too_long           = 10
-        dp_error_create           = 11
-        dp_error_send             = 12
-        dp_error_write            = 13
-        unknown_dp_error          = 14
-        access_denied             = 15
-        dp_out_of_memory          = 16
-        disk_full                 = 17
-        dp_timeout                = 18
-        file_not_found            = 19
-        dataprovider_exception    = 20
-        control_flush_error       = 21
-        not_supported_by_gui      = 22
-        error_no_gui              = 23
-        OTHERS                    = 24 ).
-    IF sy-subrc <> 0.
-      BREAK-POINT.
-    ENDIF.
-
-  ENDMETHOD.
-
   METHOD read_variant.
 
     cl_ci_checkvariant=>get_ref(
@@ -495,7 +647,7 @@ CLASS lcl_updownci IMPLEMENTATION.
 
   ENDMETHOD.
 
-  METHOD run.
+  METHOD download.
 
     DATA: lv_count   TYPE i,
           lo_xml     TYPE REF TO lcl_xml,
@@ -517,34 +669,48 @@ CLASS lcl_updownci IMPLEMENTATION.
                      iv_total   = lines( lo_variant->variant )
                      iv_class   = <ls_variant>-testname ).
 
-      IF NOT <ls_variant>-attributes IS INITIAL.
-        handle( iv_class      = <ls_variant>-testname
-                iv_attributes = <ls_variant>-attributes
-                iv_version    = <ls_variant>-version
-                io_xml        = lo_xml ).
-      ELSE.
-* todo
-      ENDIF.
+      handle( iv_class      = <ls_variant>-testname
+              iv_attributes = <ls_variant>-attributes
+              iv_version    = <ls_variant>-version
+              io_xml        = lo_xml ).
 
     ENDLOOP.
 
     lv_xml = lo_xml->render( ).
-    download( lv_xml ).
+    lcl_file=>download( lv_xml ).
 
   ENDMETHOD.
 
-  METHOD handle.
+  METHOD upload.
+
+    DATA: lo_variant TYPE REF TO cl_ci_checkvariant,
+          lo_xml     TYPE REF TO lcl_xml,
+          lv_xml     TYPE string.
+
+
+    lv_xml = lcl_file=>upload( ).
+    IF lv_xml IS INITIAL.
+      RETURN.
+    ENDIF.
+
+    lo_variant = read_variant( ).
+
+    CREATE OBJECT lo_xml
+      EXPORTING
+        iv_xml = lv_xml.
+* todo
+
+  ENDMETHOD.
+
+  METHOD build_memory.
 
     DATA: lv_include    TYPE program,
           lt_parameters TYPE ty_parameter_tt,
-          lt_import     TYPE ty_parameter_tt,
           lt_types      TYPE ty_type_tt,
-          lr_data       TYPE REF TO data,
           lt_source     TYPE abaptxt255_tab.
 
     FIELD-SYMBOLS: <ls_type>   LIKE LINE OF lt_types,
-                   <ls_import> LIKE LINE OF lt_import,
-                   <lg_data>   TYPE data.
+                   <ls_memory> LIKE LINE OF et_memory.
 
 
     lv_include    = lcl_class=>find_include( iv_class ).
@@ -553,29 +719,51 @@ CLASS lcl_updownci IMPLEMENTATION.
     lt_types      = find_types( iv_class      = iv_class
                                 it_parameters = lt_parameters ).
 
-    lr_data = create_structure( lt_types ).
-    ASSIGN lr_data->* TO <lg_data>.
+    er_data = create_structure( lt_types ).
 
     LOOP AT lt_types ASSIGNING <ls_type>.
-      APPEND INITIAL LINE TO lt_import ASSIGNING <ls_import>.
-      <ls_import>-name = <ls_type>-parameter.
+      APPEND INITIAL LINE TO et_memory ASSIGNING <ls_memory>.
+      <ls_memory>-name = <ls_type>-parameter.
       IF <ls_type>-field IS INITIAL.
         CONCATENATE '<LG_DATA>' <ls_type>-name
-          INTO <ls_import>-value SEPARATED BY '-'.
+          INTO <ls_memory>-value SEPARATED BY '-'.
       ELSE.
         CONCATENATE '<LG_DATA>' <ls_type>-name <ls_type>-field
-          INTO <ls_import>-value SEPARATED BY '-'.
+          INTO <ls_memory>-value SEPARATED BY '-'.
       ENDIF.
     ENDLOOP.
 
-    IMPORT (lt_import) FROM DATA BUFFER iv_attributes.
-    IF sy-subrc <> 0.
-      BREAK-POINT.
-    ENDIF.
+  ENDMETHOD.
 
-    io_xml->export( iv_testname = iv_class
-                    iv_version  = iv_version
-                    ig_data     = <lg_data> ).
+  METHOD handle.
+
+    DATA: lt_import TYPE ty_parameter_tt,
+          lr_data   TYPE REF TO data.
+
+    FIELD-SYMBOLS: <lg_data> TYPE data.
+
+
+    IF iv_attributes IS INITIAL.
+      io_xml->export( iv_testname = iv_class
+                      iv_version  = iv_version ).
+    ELSE.
+      build_memory(
+        EXPORTING
+          iv_class  = iv_class
+        IMPORTING
+          er_data   = lr_data
+          et_memory = lt_import ).
+      ASSIGN lr_data->* TO <lg_data>.
+
+      IMPORT (lt_import) FROM DATA BUFFER iv_attributes.
+      IF sy-subrc <> 0.
+        BREAK-POINT.
+      ENDIF.
+
+      io_xml->export( iv_testname = iv_class
+                      iv_version  = iv_version
+                      ig_data     = <lg_data> ).
+    ENDIF.
 
   ENDMETHOD.
 
@@ -734,4 +922,8 @@ INITIALIZATION.
   lcl_updownci=>initialize( ).
 
 START-OF-SELECTION.
-  lcl_updownci=>run( ).
+  IF p_down = abap_true.
+    lcl_updownci=>download( ).
+  ELSE.
+    lcl_updownci=>upload( ).
+  ENDIF.

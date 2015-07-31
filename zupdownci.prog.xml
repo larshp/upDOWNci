@@ -58,5 +58,35 @@
    <ENTRY>upDOWNci</ENTRY>
    <LENGTH>8 </LENGTH>
   </TEXTPOOL>
+  <TEXTPOOL>
+   <ID>S</ID>
+   <KEY>P_DOWN</KEY>
+   <ENTRY>        Download</ENTRY>
+   <LENGTH>16 </LENGTH>
+  </TEXTPOOL>
+  <TEXTPOOL>
+   <ID>S</ID>
+   <KEY>P_NAME</KEY>
+   <ENTRY>D       .</ENTRY>
+   <LENGTH>9 </LENGTH>
+  </TEXTPOOL>
+  <TEXTPOOL>
+   <ID>S</ID>
+   <KEY>P_UP</KEY>
+   <ENTRY>        Upload</ENTRY>
+   <LENGTH>14 </LENGTH>
+  </TEXTPOOL>
+  <TEXTPOOL>
+   <ID>S</ID>
+   <KEY>P_USER</KEY>
+   <ENTRY>D       .</ENTRY>
+   <LENGTH>9 </LENGTH>
+  </TEXTPOOL>
+  <TEXTPOOL>
+   <ID>S</ID>
+   <KEY>S_CLASS</KEY>
+   <ENTRY>D       .</ENTRY>
+   <LENGTH>9 </LENGTH>
+  </TEXTPOOL>
  </TEXTPOOL_TABLE>
 </abapGit>
