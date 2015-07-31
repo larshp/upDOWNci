@@ -372,20 +372,25 @@ CLASS lcl_xml IMPLEMENTATION.
     DATA: lv_kind        TYPE abap_typecategory,
           li_node        TYPE REF TO if_ixml_node,
           lo_data_descr  TYPE REF TO cl_abap_datadescr,
+          li_children    TYPE REF TO if_ixml_node_list,
           li_iterator    TYPE REF TO if_ixml_node_iterator,
           lo_table_descr TYPE REF TO cl_abap_tabledescr.
 
     FIELD-SYMBOLS: <lg_line> TYPE any.
 
 
+    CLEAR ct_data.
+
     lo_table_descr ?= cl_abap_typedescr=>describe_by_data( ct_data ).
     lo_data_descr = lo_table_descr->get_table_line_type( ).
     lv_kind = lo_data_descr->kind.
 
-    li_iterator = ii_parent->get_children( )->create_iterator( ).
+    li_children = ii_parent->get_children( ).
+    IF li_children IS INITIAL.
+      RETURN.
+    ENDIF.
+    li_iterator = li_children->create_iterator( ).
     li_node = li_iterator->get_next( ).
-
-    CLEAR ct_data.
 
     WHILE NOT li_node IS INITIAL.
       APPEND INITIAL LINE TO ct_data ASSIGNING <lg_line>.
@@ -491,6 +496,9 @@ CLASS lcl_xml IMPLEMENTATION.
       lv_name = <ls_comp>-name.
       li_parent = find_node( ii_node = ii_parent
                              iv_name = lv_name ).
+      IF li_parent IS INITIAL.
+        CONTINUE.
+      ENDIF.
 
       lo_typedescr = cl_abap_typedescr=>describe_by_data( <lg_any> ).
       CASE lo_typedescr->kind.
@@ -790,6 +798,10 @@ CLASS lcl_updownci IMPLEMENTATION.
     build_memory( EXPORTING iv_class  = iv_testname
                   IMPORTING er_data   = lr_data
                             et_memory = lt_export ).
+    IF lr_data IS INITIAL.
+* no attributes
+      RETURN.
+    ENDIF.
     ASSIGN lr_data->* TO <lg_data>.
     ASSERT sy-subrc = 0.
 
@@ -1050,6 +1062,10 @@ CLASS lcl_updownci IMPLEMENTATION.
                    <ls_type>      LIKE LINE OF it_types.
 
 
+    IF it_types IS INITIAL.
+      RETURN.
+    ENDIF.
+
     LOOP AT it_types ASSIGNING <ls_type>.
       APPEND INITIAL LINE TO lt_components ASSIGNING <ls_component>.
       <ls_component>-name = <ls_type>-name.
@@ -1095,6 +1111,12 @@ CLASS lcl_updownci IMPLEMENTATION.
 
 
     CONCATENATE LINES OF it_source INTO lv_source.
+
+
+    FIND FIRST OCCURRENCE OF 'message x301' IN lv_source IGNORING CASE.
+    IF sy-subrc = 0.
+      RETURN.
+    ENDIF.
 
     FIND FIRST OCCURRENCE OF 'import' IN lv_source
       IGNORING CASE MATCH OFFSET lv_offset.                 "#EC NOTEXT
