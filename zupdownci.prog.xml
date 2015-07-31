@@ -68,7 +68,13 @@
    <ID>S</ID>
    <KEY>P_NAME</KEY>
    <ENTRY>D       .</ENTRY>
-   <LENGTH>9 </LENGTH>
+   <LENGTH>21 </LENGTH>
+  </TEXTPOOL>
+  <TEXTPOOL>
+   <ID>S</ID>
+   <KEY>P_TEST</KEY>
+   <ENTRY>        Test Mode</ENTRY>
+   <LENGTH>17 </LENGTH>
   </TEXTPOOL>
   <TEXTPOOL>
    <ID>S</ID>
@@ -80,13 +86,13 @@
    <ID>S</ID>
    <KEY>P_USER</KEY>
    <ENTRY>D       .</ENTRY>
-   <LENGTH>9 </LENGTH>
+   <LENGTH>26 </LENGTH>
   </TEXTPOOL>
   <TEXTPOOL>
    <ID>S</ID>
    <KEY>S_CLASS</KEY>
    <ENTRY>D       .</ENTRY>
-   <LENGTH>9 </LENGTH>
+   <LENGTH>23 </LENGTH>
   </TEXTPOOL>
  </TEXTPOOL_TABLE>
 </abapGit>

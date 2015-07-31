@@ -37,7 +37,8 @@ PARAMETERS: p_user TYPE sci_user DEFAULT sy-uname,
 SELECT-OPTIONS: s_class FOR seoclass-clsname.
 
 PARAMETERS: p_down TYPE c RADIOBUTTON GROUP g1 DEFAULT 'X',
-            p_up   TYPE c RADIOBUTTON GROUP g1.
+            p_up   TYPE c RADIOBUTTON GROUP g1,
+            p_test TYPE c AS CHECKBOX DEFAULT abap_true.
 
 CLASS lcl_class DEFINITION FINAL.
 
@@ -113,24 +114,31 @@ CLASS lcl_xml DEFINITION FINAL.
       constructor
         IMPORTING iv_xml TYPE string OPTIONAL,
       export
-        IMPORTING ig_data       TYPE data OPTIONAL
-                  iv_testname   TYPE sci_tstval-testname
-                  iv_version    TYPE sci_tstval-version
-        RETURNING VALUE(rv_xml) TYPE string,
-      import
-        IMPORTING iv_xml  TYPE string
-        CHANGING  cg_data TYPE data,
+        IMPORTING ig_data     TYPE data OPTIONAL
+                  iv_testname TYPE sci_tstval-testname
+                  iv_version  TYPE sci_tstval-version,
+      read_variant
+        EXPORTING ei_attributes TYPE REF TO if_ixml_element
+                  ev_testname   TYPE sci_tstval-testname
+                  ev_version    TYPE sci_tstval-version,
+      read_attributes
+        CHANGING ig_data TYPE data,
       render
         RETURNING VALUE(rv_xml) TYPE string.
 
   PRIVATE SECTION.
 
     DATA:
-      mi_ixml    TYPE REF TO if_ixml,
-      mi_root    TYPE REF TO if_ixml_element,
-      mi_xml_doc TYPE REF TO if_ixml_document.
+      mi_ixml     TYPE REF TO if_ixml,
+      mi_root     TYPE REF TO if_ixml_node,
+      mi_iterator TYPE REF TO if_ixml_node_iterator,
+      mi_xml_doc  TYPE REF TO if_ixml_document.
 
     METHODS:
+      find_node
+        IMPORTING ii_node        TYPE REF TO if_ixml_node
+                  iv_name        TYPE string
+        RETURNING VALUE(ri_node) TYPE REF TO if_ixml_node,
       structure_export
         IMPORTING ig_data   TYPE data
                   ii_parent TYPE REF TO if_ixml_element,
@@ -155,6 +163,8 @@ CLASS lcl_xml IMPLEMENTATION.
 
   METHOD constructor.
 
+    CONSTANTS: c_root TYPE string VALUE 'VARIANT'.
+
     DATA: li_stream_factory TYPE REF TO if_ixml_stream_factory,
           li_istream        TYPE REF TO if_ixml_istream,
           li_parser         TYPE REF TO if_ixml_parser.
@@ -175,8 +185,11 @@ CLASS lcl_xml IMPLEMENTATION.
       ENDIF.
 
       li_istream->close( ).
+
+      mi_root = mi_xml_doc->get_first_child( ).
+      mi_iterator = mi_root->get_children( )->create_iterator( ).
     ELSE.
-      mi_root = mi_xml_doc->create_element( 'VARIANT' ).
+      mi_root = mi_xml_doc->create_element( c_root ).
       mi_xml_doc->append_child( mi_root ).
     ENDIF.
 
@@ -245,8 +258,49 @@ CLASS lcl_xml IMPLEMENTATION.
 
   ENDMETHOD.
 
-  METHOD import.
-    structure_import( CHANGING cg_data = cg_data ).
+  METHOD read_variant.
+
+    DATA: lv_name  TYPE string,
+          li_child TYPE REF TO if_ixml_node.
+
+
+    CLEAR ev_testname.
+
+    li_child = mi_iterator->get_next( ).
+    IF li_child IS INITIAL.
+      RETURN.
+    ENDIF.
+
+    li_child = mi_iterator->get_next( ). " skip text node
+
+    ev_testname = li_child->get_name( ).
+    ev_version = find_node( ii_node = li_child
+                            iv_name = 'VERSION' )->get_value( ).
+
+  ENDMETHOD.
+
+  METHOD find_node.
+
+    DATA: li_node     TYPE REF TO if_ixml_node,
+          li_iterator TYPE REF TO if_ixml_node_iterator.
+
+
+    li_iterator = ii_node->create_iterator( ).
+    li_node = li_iterator->get_next( ).
+    WHILE NOT li_node IS INITIAL.
+      IF li_node->get_type( ) = if_ixml_node=>co_node_element
+          AND li_node->get_name( ) = iv_name.
+        ri_node = li_node.
+      ENDIF.
+      li_node = li_iterator->get_next( ).
+    ENDWHILE.
+
+  ENDMETHOD.
+
+  METHOD read_attributes.
+
+* todo
+
   ENDMETHOD.
 
   METHOD render.
@@ -568,6 +622,9 @@ CLASS lcl_updownci DEFINITION FINAL.
     TYPES: ty_type_tt TYPE STANDARD TABLE OF ty_type WITH DEFAULT KEY.
 
     CLASS-METHODS:
+      get_check_version
+        IMPORTING iv_testname       TYPE sci_tstval-testname
+        RETURNING VALUE(rv_version) TYPE sci_tstval-version,
       read_variant
         RETURNING VALUE(ro_variant) TYPE REF TO cl_ci_checkvariant,
       handle
@@ -581,6 +638,12 @@ CLASS lcl_updownci DEFINITION FINAL.
         EXPORTING er_data   TYPE REF TO data
                   et_memory TYPE ty_parameter_tt
         RAISING   cx_static_check,
+      upload_attributes
+        IMPORTING
+          iv_testname   TYPE sci_tstval-testname
+          ii_attributes TYPE REF TO if_ixml_element
+        CHANGING
+          ct_variant    TYPE sci_tstvar,
       read_source
         IMPORTING iv_include       TYPE program
         RETURNING VALUE(rt_source) TYPE abaptxt255_tab,
@@ -603,6 +666,26 @@ CLASS lcl_updownci DEFINITION FINAL.
 ENDCLASS.
 
 CLASS lcl_updownci IMPLEMENTATION.
+
+  METHOD upload_attributes.
+* todo
+  ENDMETHOD.
+
+  METHOD get_check_version.
+
+    DATA: lo_obj TYPE REF TO object.
+
+    FIELD-SYMBOLS: <lv_version> TYPE sci_vers.
+
+
+    CREATE OBJECT lo_obj TYPE (iv_testname).
+
+    ASSIGN lo_obj->('VERSION') TO <lv_version>.
+    ASSERT sy-subrc = 0.
+
+    rv_version = <lv_version>.
+
+  ENDMETHOD.
 
   METHOD initialize.
 
@@ -683,9 +766,13 @@ CLASS lcl_updownci IMPLEMENTATION.
 
   METHOD upload.
 
-    DATA: lo_variant TYPE REF TO cl_ci_checkvariant,
-          lo_xml     TYPE REF TO lcl_xml,
-          lv_xml     TYPE string.
+    DATA: lt_variant    TYPE sci_tstvar,
+          lo_xml        TYPE REF TO lcl_xml,
+          lv_xml        TYPE string,
+          lo_variant    TYPE REF TO cl_ci_checkvariant,
+          li_attributes TYPE REF TO if_ixml_element,
+          lv_testname   TYPE sci_tstval-testname,
+          lv_version    TYPE sci_tstval-version.
 
 
     lv_xml = lcl_file=>upload( ).
@@ -694,11 +781,42 @@ CLASS lcl_updownci IMPLEMENTATION.
     ENDIF.
 
     lo_variant = read_variant( ).
+    lt_variant = lo_variant->variant.
 
     CREATE OBJECT lo_xml
       EXPORTING
         iv_xml = lv_xml.
-* todo
+
+    lo_xml->read_variant(
+      IMPORTING
+        ei_attributes = li_attributes
+        ev_testname   = lv_testname
+        ev_version    = lv_version ).
+    WHILE NOT lv_testname IS INITIAL.
+      WRITE: / lv_testname, lv_version.
+      IF get_check_version( lv_testname ) <> lv_version.
+        WRITE: / 'Version mismatch'.
+      ELSE.
+        WRITE: / 'Version match'.
+        upload_attributes(
+          EXPORTING
+            iv_testname   = lv_testname
+            ii_attributes = li_attributes
+          CHANGING
+            ct_variant    = lt_variant ).
+      ENDIF.
+      WRITE: /.
+
+      lo_xml->read_variant(
+        IMPORTING
+          ei_attributes = li_attributes
+          ev_testname   = lv_testname
+          ev_version    = lv_version ).
+    ENDWHILE.
+
+    IF p_test = abap_false.
+      lo_variant->save( lt_variant ).
+    ENDIF.
 
   ENDMETHOD.
 
