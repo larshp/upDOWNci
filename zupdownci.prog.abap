@@ -32,7 +32,7 @@ REPORT zupdownci.
 TABLES: seoclass.
 
 PARAMETERS: p_user TYPE sci_user DEFAULT sy-uname,
-            p_name TYPE sci_chkv DEFAULT 'DEFAULT'.
+            p_name TYPE sci_chkv DEFAULT 'DEFAULT' OBLIGATORY.
 
 SELECT-OPTIONS: s_class FOR seoclass-clsname.
 
@@ -723,6 +723,7 @@ CLASS lcl_updownci DEFINITION FINAL.
         IMPORTING iv_testname       TYPE sci_tstval-testname
         RETURNING VALUE(rv_version) TYPE sci_tstval-version,
       read_variant
+        IMPORTING iv_create         TYPE abap_bool DEFAULT abap_false
         RETURNING VALUE(ro_variant) TYPE REF TO cl_ci_checkvariant,
       download_attributes
         IMPORTING iv_class      TYPE seoclsname
@@ -784,7 +785,7 @@ CLASS lcl_updownci IMPLEMENTATION.
         RETURN.
       ENDIF.
     ELSE.
-      WRITE: / 'Not found, creating'.                       "#EC NOTEXT
+      WRITE: / 'Not found, creating' COLOR 6.               "#EC NOTEXT
 
       CLEAR ls_variant.
       ls_variant-testname = iv_testname.
@@ -884,14 +885,25 @@ CLASS lcl_updownci IMPLEMENTATION.
         chkv_not_exists   = 1
         missing_parameter = 2
         OTHERS            = 3 ).
-    IF sy-subrc <> 0.
-      BREAK-POINT.
+    IF sy-subrc = 0.
+      ro_variant->get_info(
+        EXCEPTIONS
+          could_not_read_variant = 1
+          OTHERS                 = 2 ).
+    ELSEIF sy-subrc = 1 AND iv_create = abap_true.
+      cl_ci_checkvariant=>create(
+        EXPORTING
+          p_user              = p_user
+          p_name              = p_name
+        RECEIVING
+          p_ref               = ro_variant
+        EXCEPTIONS
+          chkv_already_exists = 1
+          locked              = 2
+          error_in_enqueue    = 3
+          not_authorized      = 4
+          OTHERS              = 5 ).
     ENDIF.
-
-    ro_variant->get_info(
-      EXCEPTIONS
-        could_not_read_variant = 1
-        OTHERS                 = 2 ).
     IF sy-subrc <> 0.
       BREAK-POINT.
     ENDIF.
@@ -945,7 +957,7 @@ CLASS lcl_updownci IMPLEMENTATION.
       RETURN.
     ENDIF.
 
-    lo_variant = read_variant( ).
+    lo_variant = read_variant( abap_true ).
     lo_variant->enter_change( ).
     lt_variant = lo_variant->variant.
 
@@ -961,7 +973,7 @@ CLASS lcl_updownci IMPLEMENTATION.
     WHILE NOT lv_testname IS INITIAL.
       WRITE: / lv_testname, lv_version.
       IF get_check_version( lv_testname ) <> lv_version.
-        WRITE: / 'Version mismatch'.                        "#EC NOTEXT
+        WRITE: / 'Version mismatch' COLOR 6.                "#EC NOTEXT
       ELSE.
         WRITE: / 'Version match'.                           "#EC NOTEXT
         upload_attributes(
@@ -1113,8 +1125,10 @@ CLASS lcl_updownci IMPLEMENTATION.
     CONCATENATE LINES OF it_source INTO lv_source.
 
 
-    FIND FIRST OCCURRENCE OF 'message x301' IN lv_source IGNORING CASE.
+    FIND FIRST OCCURRENCE OF 'message x301' IN lv_source
+      IGNORING CASE.                                        "#EC NOTEXT
     IF sy-subrc = 0.
+* no attributes
       RETURN.
     ENDIF.
 
