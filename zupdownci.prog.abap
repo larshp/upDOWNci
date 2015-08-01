@@ -40,6 +40,41 @@ PARAMETERS: p_down TYPE c RADIOBUTTON GROUP g1 DEFAULT 'X',
             p_up   TYPE c RADIOBUTTON GROUP g1,
             p_test TYPE c AS CHECKBOX DEFAULT abap_true.
 
+DEFINE _raise.
+  raise exception type lcx_exception
+    exporting
+      iv_text = &1.                                         "#EC NOTEXT
+END-OF-DEFINITION.
+
+*----------------------------------------------------------------------*
+*       CLASS LCX_EXCEPTION DEFINITION
+*----------------------------------------------------------------------*
+*
+*----------------------------------------------------------------------*
+CLASS lcx_exception DEFINITION INHERITING FROM cx_static_check FINAL.
+
+  PUBLIC SECTION.
+    DATA mv_text TYPE string.
+
+    METHODS constructor
+      IMPORTING iv_text TYPE string.
+
+ENDCLASS.                    "CX_LOCAL_EXCEPTION DEFINITION
+
+*----------------------------------------------------------------------*
+*       CLASS LCX_EXCEPTION IMPLEMENTATION
+*----------------------------------------------------------------------*
+*
+*----------------------------------------------------------------------*
+CLASS lcx_exception IMPLEMENTATION.
+
+  METHOD constructor.
+    super->constructor( ).
+    mv_text = iv_text.
+  ENDMETHOD.                    "CONSTRUCTOR
+
+ENDCLASS.
+
 CLASS lcl_class DEFINITION FINAL.
 
   PUBLIC SECTION.
@@ -81,7 +116,7 @@ CLASS lcl_class IMPLEMENTATION.
       lv_super = lo_class->get_superclass( ).
       rv_include = find_include( lv_super ).
     ELSEIF sy-subrc <> 0.
-      BREAK-POINT.
+      _raise 'error while finding method include'.
     ENDIF.
 
   ENDMETHOD.
@@ -116,14 +151,17 @@ CLASS lcl_xml DEFINITION FINAL.
       write_variant
         IMPORTING ig_data     TYPE data OPTIONAL
                   iv_testname TYPE sci_tstval-testname
-                  iv_version  TYPE sci_tstval-version,
+                  iv_version  TYPE sci_tstval-version
+        RAISING   lcx_exception,
       read_variant
         EXPORTING ei_attributes TYPE REF TO if_ixml_node
                   ev_testname   TYPE sci_tstval-testname
-                  ev_version    TYPE sci_tstval-version,
+                  ev_version    TYPE sci_tstval-version
+        RAISING   lcx_exception,
       read_attributes
         IMPORTING ii_attributes TYPE REF TO if_ixml_node
-        CHANGING  cg_data       TYPE data,
+        CHANGING  cg_data       TYPE data
+        RAISING   lcx_exception,
       render
         RETURNING VALUE(rv_xml) TYPE string.
 
@@ -142,16 +180,20 @@ CLASS lcl_xml DEFINITION FINAL.
         RETURNING VALUE(ri_node) TYPE REF TO if_ixml_node,
       structure_export
         IMPORTING ig_data   TYPE data
-                  ii_parent TYPE REF TO if_ixml_element,
+                  ii_parent TYPE REF TO if_ixml_element
+        RAISING   lcx_exception,
       structure_import
         IMPORTING ii_parent TYPE REF TO if_ixml_node
-        CHANGING  cg_data   TYPE data,
+        CHANGING  cg_data   TYPE data
+        RAISING   lcx_exception,
       table_export
         IMPORTING it_data   TYPE STANDARD TABLE
-                  ii_parent TYPE REF TO if_ixml_element,
+                  ii_parent TYPE REF TO if_ixml_element
+        RAISING   lcx_exception,
       table_import
         IMPORTING ii_parent TYPE REF TO if_ixml_node
-        CHANGING  ct_data   TYPE STANDARD TABLE,
+        CHANGING  ct_data   TYPE STANDARD TABLE
+        RAISING   lcx_exception,
       simple_export
         IMPORTING iv_data   TYPE simple
                   ii_parent TYPE REF TO if_ixml_element,
@@ -361,7 +403,7 @@ CLASS lcl_xml IMPLEMENTATION.
           simple_export( iv_data   = <lg_line>
                          ii_parent = li_parent ).
         WHEN OTHERS.
-          BREAK-POINT.
+          _raise 'unknown kind'.
       ENDCASE.
     ENDLOOP.
 
@@ -406,7 +448,7 @@ CLASS lcl_xml IMPLEMENTATION.
           simple_import( EXPORTING ii_parent = li_node
                          CHANGING cv_data   = <lg_line> ).
         WHEN OTHERS.
-          BREAK-POINT.
+          _raise 'unknown kind'.
       ENDCASE.
 
       li_node = li_iterator->get_next( ).
@@ -471,7 +513,7 @@ CLASS lcl_xml IMPLEMENTATION.
           simple_export( iv_data   = <lg_any>
                          ii_parent = li_parent ).
         WHEN OTHERS.
-          BREAK-POINT.
+          _raise 'unknown kind'.
       ENDCASE.
     ENDLOOP.
 
@@ -512,7 +554,7 @@ CLASS lcl_xml IMPLEMENTATION.
           simple_import( EXPORTING ii_parent = li_parent
                          CHANGING cv_data    = <lg_any> ).
         WHEN OTHERS.
-          BREAK-POINT.
+          _raise 'unknown kind'.
       ENDCASE.
     ENDLOOP.
 
@@ -526,10 +568,10 @@ CLASS lcl_file DEFINITION FINAL.
     CLASS-METHODS:
       download
         IMPORTING iv_xml TYPE string
-        RAISING   cx_bcs,
+        RAISING   cx_bcs lcx_exception,
       upload
         RETURNING VALUE(rv_xml) TYPE string
-        RAISING   cx_bcs.
+        RAISING   cx_bcs lcx_exception.
 
 ENDCLASS.
 
@@ -559,7 +601,7 @@ CLASS lcl_file IMPLEMENTATION.
         not_supported_by_gui    = 4
         OTHERS                  = 5 ).
     IF sy-subrc <> 0.
-      BREAK-POINT.
+      _raise 'error from file_open_dialog'.
     ENDIF.
     IF lv_action = cl_gui_frontend_services=>action_cancel.
       RETURN.
@@ -596,7 +638,7 @@ CLASS lcl_file IMPLEMENTATION.
         error_no_gui            = 18
         OTHERS                  = 19 ).
     IF sy-subrc <> 0.
-      BREAK-POINT.
+      _raise 'error from gui_upload'.
     ENDIF.
 
     CONCATENATE LINES OF lt_data INTO rv_xml.
@@ -632,7 +674,7 @@ CLASS lcl_file IMPLEMENTATION.
         not_supported_by_gui = 3
         OTHERS               = 4 ).                         "#EC NOTEXT
     IF sy-subrc <> 0.
-      BREAK-POINT.
+      _raise 'error from file_save_dialog'.
     ENDIF.
     IF lv_action = cl_gui_frontend_services=>action_cancel.
       RETURN.
@@ -679,7 +721,7 @@ CLASS lcl_file IMPLEMENTATION.
         error_no_gui              = 23
         OTHERS                    = 24 ).
     IF sy-subrc <> 0.
-      BREAK-POINT.
+      _raise 'error from gui_download'.
     ENDIF.
 
   ENDMETHOD.
@@ -690,6 +732,7 @@ CLASS lcl_updownci DEFINITION FINAL.
 
   PUBLIC SECTION.
     CLASS-METHODS:
+      run,
       download
         RAISING cx_static_check,
       upload
@@ -721,10 +764,16 @@ CLASS lcl_updownci DEFINITION FINAL.
     CLASS-METHODS:
       get_check_version
         IMPORTING iv_testname       TYPE sci_tstval-testname
-        RETURNING VALUE(rv_version) TYPE sci_tstval-version,
+        RETURNING VALUE(rv_version) TYPE sci_tstval-version
+        RAISING   lcx_exception,
+      get_check_has_attributes
+        IMPORTING iv_testname              TYPE sci_tstval-testname
+        RETURNING VALUE(rv_has_attributes) TYPE sychar01
+        RAISING   lcx_exception,
       read_variant
         IMPORTING iv_create         TYPE abap_bool DEFAULT abap_false
-        RETURNING VALUE(ro_variant) TYPE REF TO cl_ci_checkvariant,
+        RETURNING VALUE(ro_variant) TYPE REF TO cl_ci_checkvariant
+        RAISING   lcx_exception,
       download_attributes
         IMPORTING iv_class      TYPE seoclsname
                   iv_attributes TYPE xstring
@@ -740,6 +789,13 @@ CLASS lcl_updownci DEFINITION FINAL.
                   iv_testname   TYPE sci_tstval-testname
                   ii_attributes TYPE REF TO if_ixml_node
         CHANGING
+                  cv_attributes TYPE xstring
+        RAISING   cx_static_check,
+      update_variant
+        IMPORTING
+                  iv_testname   TYPE sci_tstval-testname
+                  ii_attributes TYPE REF TO if_ixml_node
+        CHANGING
                   ct_variant    TYPE sci_tstvar
         RAISING   cx_static_check,
       read_source
@@ -747,7 +803,8 @@ CLASS lcl_updownci DEFINITION FINAL.
         RETURNING VALUE(rt_source) TYPE abaptxt255_tab,
       parse
         IMPORTING it_source            TYPE abaptxt255_tab
-        RETURNING VALUE(rt_parameters) TYPE ty_parameter_tt,
+        RETURNING VALUE(rt_parameters) TYPE ty_parameter_tt
+        RAISING   lcx_exception,
       find_types
         IMPORTING iv_class        TYPE seoclsname
                   it_parameters   TYPE ty_parameter_tt
@@ -759,7 +816,8 @@ CLASS lcl_updownci DEFINITION FINAL.
                   iv_class   TYPE seoclsname,
       create_structure
         IMPORTING it_types       TYPE ty_type_tt
-        RETURNING VALUE(rr_data) TYPE REF TO data.
+        RETURNING VALUE(rr_data) TYPE REF TO data
+        RAISING   lcx_exception.
 
 ENDCLASS.
 
@@ -769,40 +827,15 @@ CLASS lcl_updownci IMPLEMENTATION.
 
     DATA: lt_export     TYPE ty_parameter_tt,
           lv_attributes TYPE xstring,
-          ls_variant    LIKE LINE OF ct_variant,
           lr_data       TYPE REF TO data.
 
-    FIELD-SYMBOLS: <ls_variant>  LIKE LINE OF ct_variant,
-                   <lg_data>     TYPE data,
+    FIELD-SYMBOLS: <lg_data>     TYPE data,
                    <lg_data_old> TYPE data.
 
-
-    READ TABLE ct_variant ASSIGNING <ls_variant> WITH KEY testname = iv_testname.
-    IF sy-subrc = 0.
-      WRITE: / 'Found'.                                     "#EC NOTEXT
-      IF <ls_variant>-attributes IS INITIAL.
-        WRITE: / 'No attributes'.                           "#EC NOTEXT
-        RETURN.
-      ENDIF.
-    ELSE.
-      WRITE: / 'Not found, creating' COLOR 6.               "#EC NOTEXT
-
-      CLEAR ls_variant.
-      ls_variant-testname = iv_testname.
-      ls_variant-version = get_check_version( iv_testname ).
-      INSERT ls_variant INTO TABLE ct_variant.
-
-      READ TABLE ct_variant ASSIGNING <ls_variant> WITH KEY testname = iv_testname.
-      ASSERT sy-subrc = 0.
-    ENDIF.
 
     build_memory( EXPORTING iv_class  = iv_testname
                   IMPORTING er_data   = lr_data
                             et_memory = lt_export ).
-    IF lr_data IS INITIAL.
-* no attributes
-      RETURN.
-    ENDIF.
     ASSIGN lr_data->* TO <lg_data>.
     ASSERT sy-subrc = 0.
 
@@ -811,10 +844,10 @@ CLASS lcl_updownci IMPLEMENTATION.
     ASSIGN lr_data->* TO <lg_data_old>.
     ASSERT sy-subrc = 0.
 
-    IF NOT <ls_variant>-attributes IS INITIAL.
-      IMPORT (lt_export) FROM DATA BUFFER <ls_variant>-attributes.
+    IF NOT cv_attributes IS INITIAL.
+      IMPORT (lt_export) FROM DATA BUFFER cv_attributes.
       IF sy-subrc <> 0.
-        BREAK-POINT.
+        _raise 'IMPORT error'.
       ENDIF.
       <lg_data_old> = <lg_data>.
     ENDIF.
@@ -829,10 +862,30 @@ CLASS lcl_updownci IMPLEMENTATION.
     EXPORT (lt_export) TO DATA BUFFER lv_attributes.
     IF <lg_data> <> <lg_data_old>.
       WRITE: / 'Attributes mismatch' COLOR 6.               "#EC NOTEXT
-      <ls_variant>-attributes = lv_attributes.
+      cv_attributes = lv_attributes.
     ELSE.
       WRITE: / 'Attributes match'.                          "#EC NOTEXT
     ENDIF.
+
+  ENDMETHOD.
+
+  METHOD get_check_has_attributes.
+
+    DATA: lo_obj TYPE REF TO object.
+
+    FIELD-SYMBOLS: <lv_has_attributes> TYPE sychar01.
+
+
+    TRY.
+        CREATE OBJECT lo_obj TYPE (iv_testname).
+      CATCH cx_sy_create_object_error.
+        _raise 'test not found'.
+    ENDTRY.
+
+    ASSIGN lo_obj->('HAS_ATTRIBUTES') TO <lv_has_attributes>.
+    ASSERT sy-subrc = 0.
+
+    rv_has_attributes = <lv_has_attributes>.
 
   ENDMETHOD.
 
@@ -846,7 +899,7 @@ CLASS lcl_updownci IMPLEMENTATION.
     TRY.
         CREATE OBJECT lo_obj TYPE (iv_testname).
       CATCH cx_sy_create_object_error.
-        BREAK-POINT.
+        _raise 'test not found'.
     ENDTRY.
 
     ASSIGN lo_obj->('VERSION') TO <lv_version>.
@@ -905,8 +958,28 @@ CLASS lcl_updownci IMPLEMENTATION.
           OTHERS              = 5 ).
     ENDIF.
     IF sy-subrc <> 0.
-      BREAK-POINT.
+      _raise 'error reading/creating variant'.
     ENDIF.
+
+  ENDMETHOD.
+
+  METHOD run.
+
+    DATA: lx_static    TYPE REF TO cx_static_check,
+          lx_exception TYPE REF TO lcx_exception.
+
+
+    TRY.
+        IF p_down = abap_true.
+          lcl_updownci=>download( ).
+        ELSE.
+          lcl_updownci=>upload( ).
+        ENDIF.
+      CATCH lcx_exception INTO lx_exception.
+        MESSAGE lx_exception->mv_text TYPE 'E'.
+      CATCH cx_static_check INTO lx_static.
+        MESSAGE lx_static TYPE 'E'.
+    ENDTRY.
 
   ENDMETHOD.
 
@@ -932,8 +1005,8 @@ CLASS lcl_updownci IMPLEMENTATION.
                      iv_class   = <ls_variant>-testname ).
 
       download_attributes( iv_class      = <ls_variant>-testname
-              iv_attributes = <ls_variant>-attributes
-              iv_version    = <ls_variant>-version ).
+                           iv_attributes = <ls_variant>-attributes
+                           iv_version    = <ls_variant>-version ).
 
     ENDLOOP.
 
@@ -971,12 +1044,17 @@ CLASS lcl_updownci IMPLEMENTATION.
         ev_testname   = lv_testname
         ev_version    = lv_version ).
     WHILE NOT lv_testname IS INITIAL.
+      show_progress( iv_current = 1
+                     iv_total   = 100
+                     iv_class   = lv_testname ).
+
       WRITE: / lv_testname, lv_version.
       IF get_check_version( lv_testname ) <> lv_version.
         WRITE: / 'Version mismatch' COLOR 6.                "#EC NOTEXT
       ELSE.
         WRITE: / 'Version match'.                           "#EC NOTEXT
-        upload_attributes(
+
+        update_variant(
           EXPORTING
             iv_testname   = lv_testname
             ii_attributes = li_attributes
@@ -996,6 +1074,41 @@ CLASS lcl_updownci IMPLEMENTATION.
       lo_variant->save( lt_variant ).
     ELSE.
       lo_variant->leave_change( ).
+    ENDIF.
+
+  ENDMETHOD.
+
+  METHOD update_variant.
+
+    DATA: ls_variant LIKE LINE OF ct_variant.
+
+    FIELD-SYMBOLS: <ls_variant>  LIKE LINE OF ct_variant.
+
+
+    READ TABLE ct_variant ASSIGNING <ls_variant> WITH KEY testname = iv_testname.
+    IF sy-subrc = 0.
+      WRITE: / 'Found'.                                     "#EC NOTEXT
+    ELSE.
+      WRITE: / 'Not found, creating' COLOR 6.               "#EC NOTEXT
+
+      CLEAR ls_variant.
+      ls_variant-testname = iv_testname.
+      ls_variant-version = get_check_version( iv_testname ).
+      INSERT ls_variant INTO TABLE ct_variant.
+
+      READ TABLE ct_variant ASSIGNING <ls_variant> WITH KEY testname = iv_testname.
+      ASSERT sy-subrc = 0.
+    ENDIF.
+
+    IF get_check_has_attributes( iv_testname ) = abap_true.
+      upload_attributes(
+        EXPORTING
+          iv_testname   = iv_testname
+          ii_attributes = ii_attributes
+        CHANGING
+          cv_attributes = <ls_variant>-attributes ).
+    ELSE.
+      WRITE: / 'No attributes'.                             "#EC NOTEXT
     ENDIF.
 
   ENDMETHOD.
@@ -1055,7 +1168,7 @@ CLASS lcl_updownci IMPLEMENTATION.
 
       IMPORT (lt_import) FROM DATA BUFFER iv_attributes.
       IF sy-subrc <> 0.
-        BREAK-POINT.
+        _raise 'IMPORT error'.
       ENDIF.
 
       go_xml->write_variant( iv_testname = iv_class
@@ -1091,7 +1204,7 @@ CLASS lcl_updownci IMPLEMENTATION.
         lo_structdescr = cl_abap_structdescr=>create( lt_components ).
         CREATE DATA rr_data TYPE HANDLE lo_structdescr.
       CATCH cx_sy_struct_comp_name.
-        BREAK-POINT.
+        _raise 'error creating structure'.
     ENDTRY.
 
   ENDMETHOD.
@@ -1124,18 +1237,10 @@ CLASS lcl_updownci IMPLEMENTATION.
 
     CONCATENATE LINES OF it_source INTO lv_source.
 
-
-    FIND FIRST OCCURRENCE OF 'message x301' IN lv_source
-      IGNORING CASE.                                        "#EC NOTEXT
-    IF sy-subrc = 0.
-* no attributes
-      RETURN.
-    ENDIF.
-
     FIND FIRST OCCURRENCE OF 'import' IN lv_source
       IGNORING CASE MATCH OFFSET lv_offset.                 "#EC NOTEXT
     IF sy-subrc <> 0.
-      BREAK-POINT.
+      _raise '"import" not found'.
     ENDIF.
     lv_offset = lv_offset + 6.
     lv_source = lv_source+lv_offset.
@@ -1143,7 +1248,7 @@ CLASS lcl_updownci IMPLEMENTATION.
     FIND FIRST OCCURRENCE OF 'from data buffer p_attributes' IN lv_source
       IGNORING CASE MATCH OFFSET lv_offset.                 "#EC NOTEXT
     IF sy-subrc <> 0.
-      BREAK-POINT.
+      _raise '"from data buffer" not found'.
     ENDIF.
     lv_source = lv_source(lv_offset).
 
@@ -1232,8 +1337,4 @@ INITIALIZATION.
   lcl_updownci=>initialize( ).
 
 START-OF-SELECTION.
-  IF p_down = abap_true.
-    lcl_updownci=>download( ).
-  ELSE.
-    lcl_updownci=>upload( ).
-  ENDIF.
+  lcl_updownci=>run( ).
