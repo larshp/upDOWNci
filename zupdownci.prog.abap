@@ -46,11 +46,6 @@ DEFINE _raise.
       iv_text = &1.                                         "#EC NOTEXT
 END-OF-DEFINITION.
 
-*----------------------------------------------------------------------*
-*       CLASS LCX_EXCEPTION DEFINITION
-*----------------------------------------------------------------------*
-*
-*----------------------------------------------------------------------*
 CLASS lcx_exception DEFINITION INHERITING FROM cx_static_check FINAL.
 
   PUBLIC SECTION.
@@ -59,19 +54,22 @@ CLASS lcx_exception DEFINITION INHERITING FROM cx_static_check FINAL.
     METHODS constructor
       IMPORTING iv_text TYPE string.
 
-ENDCLASS.                    "CX_LOCAL_EXCEPTION DEFINITION
+ENDCLASS.
 
-*----------------------------------------------------------------------*
-*       CLASS LCX_EXCEPTION IMPLEMENTATION
-*----------------------------------------------------------------------*
-*
-*----------------------------------------------------------------------*
 CLASS lcx_exception IMPLEMENTATION.
 
   METHOD constructor.
     super->constructor( ).
     mv_text = iv_text.
   ENDMETHOD.                    "CONSTRUCTOR
+
+ENDCLASS.
+
+CLASS lcx_test_not_found DEFINITION INHERITING FROM cx_static_check FINAL.
+
+ENDCLASS.
+
+CLASS lcx_test_not_found IMPLEMENTATION.
 
 ENDCLASS.
 
@@ -728,6 +726,115 @@ CLASS lcl_file IMPLEMENTATION.
 
 ENDCLASS.
 
+CLASS lcl_variant DEFINITION FINAL.
+
+  PUBLIC SECTION.
+    CLASS-METHODS:
+      version
+        IMPORTING iv_testname       TYPE sci_tstval-testname
+        RETURNING VALUE(rv_version) TYPE sci_tstval-version
+        RAISING   lcx_test_not_found,
+      has_attributes
+        IMPORTING iv_testname              TYPE sci_tstval-testname
+        RETURNING VALUE(rv_has_attributes) TYPE sychar01
+        RAISING   lcx_test_not_found,
+      read
+        IMPORTING iv_create         TYPE abap_bool DEFAULT abap_false
+        RETURNING VALUE(ro_variant) TYPE REF TO cl_ci_checkvariant
+        RAISING   lcx_exception.
+
+  PRIVATE SECTION.
+    CLASS-METHODS:
+      create_object
+        IMPORTING iv_testname   TYPE sci_tstval-testname
+        RETURNING VALUE(ro_obj) TYPE REF TO object
+        RAISING   lcx_test_not_found.
+
+ENDCLASS.
+
+CLASS lcl_variant IMPLEMENTATION.
+
+  METHOD create_object.
+
+    TRY.
+        CREATE OBJECT ro_obj TYPE (iv_testname).
+      CATCH cx_sy_create_object_error.
+        RAISE EXCEPTION TYPE lcx_test_not_found.
+    ENDTRY.
+
+  ENDMETHOD.
+
+  METHOD has_attributes.
+
+    DATA: lo_obj TYPE REF TO object.
+
+    FIELD-SYMBOLS: <lv_has_attributes> TYPE sychar01.
+
+
+    lo_obj = create_object( iv_testname ).
+
+    ASSIGN lo_obj->('HAS_ATTRIBUTES') TO <lv_has_attributes>.
+    ASSERT sy-subrc = 0.
+
+    rv_has_attributes = <lv_has_attributes>.
+
+  ENDMETHOD.
+
+  METHOD version.
+
+    DATA: lo_obj TYPE REF TO object.
+
+    FIELD-SYMBOLS: <lv_version> TYPE sci_vers.
+
+
+    lo_obj = create_object( iv_testname ).
+
+    ASSIGN lo_obj->('VERSION') TO <lv_version>.
+    ASSERT sy-subrc = 0.
+
+    rv_version = <lv_version>.
+
+  ENDMETHOD.
+
+  METHOD read.
+
+    cl_ci_checkvariant=>get_ref(
+      EXPORTING
+        p_user            = p_user
+        p_name            = p_name
+      RECEIVING
+        p_ref             = ro_variant
+      EXCEPTIONS
+        chkv_not_exists   = 1
+        missing_parameter = 2
+        OTHERS            = 3 ).
+    IF sy-subrc = 0.
+      ro_variant->get_info(
+        EXCEPTIONS
+          could_not_read_variant = 1
+          OTHERS                 = 2 ).
+    ELSEIF sy-subrc = 1 AND iv_create = abap_true.
+      cl_ci_checkvariant=>create(
+        EXPORTING
+          p_user              = p_user
+          p_name              = p_name
+        RECEIVING
+          p_ref               = ro_variant
+        EXCEPTIONS
+          chkv_already_exists = 1
+          locked              = 2
+          error_in_enqueue    = 3
+          not_authorized      = 4
+          OTHERS              = 5 ).
+    ENDIF.
+    IF sy-subrc <> 0.
+      _raise 'error reading/creating variant'.
+    ENDIF.
+
+  ENDMETHOD.
+
+ENDCLASS.
+
 CLASS lcl_updownci DEFINITION FINAL.
 
   PUBLIC SECTION.
@@ -762,18 +869,6 @@ CLASS lcl_updownci DEFINITION FINAL.
       go_xml TYPE REF TO lcl_xml.
 
     CLASS-METHODS:
-      get_check_version
-        IMPORTING iv_testname       TYPE sci_tstval-testname
-        RETURNING VALUE(rv_version) TYPE sci_tstval-version
-        RAISING   lcx_exception,
-      get_check_has_attributes
-        IMPORTING iv_testname              TYPE sci_tstval-testname
-        RETURNING VALUE(rv_has_attributes) TYPE sychar01
-        RAISING   lcx_exception,
-      read_variant
-        IMPORTING iv_create         TYPE abap_bool DEFAULT abap_false
-        RETURNING VALUE(ro_variant) TYPE REF TO cl_ci_checkvariant
-        RAISING   lcx_exception,
       download_attributes
         IMPORTING iv_class      TYPE seoclsname
                   iv_attributes TYPE xstring
@@ -869,46 +964,6 @@ CLASS lcl_updownci IMPLEMENTATION.
 
   ENDMETHOD.
 
-  METHOD get_check_has_attributes.
-
-    DATA: lo_obj TYPE REF TO object.
-
-    FIELD-SYMBOLS: <lv_has_attributes> TYPE sychar01.
-
-
-    TRY.
-        CREATE OBJECT lo_obj TYPE (iv_testname).
-      CATCH cx_sy_create_object_error.
-        _raise 'test not found'.
-    ENDTRY.
-
-    ASSIGN lo_obj->('HAS_ATTRIBUTES') TO <lv_has_attributes>.
-    ASSERT sy-subrc = 0.
-
-    rv_has_attributes = <lv_has_attributes>.
-
-  ENDMETHOD.
-
-  METHOD get_check_version.
-
-    DATA: lo_obj TYPE REF TO object.
-
-    FIELD-SYMBOLS: <lv_version> TYPE sci_vers.
-
-
-    TRY.
-        CREATE OBJECT lo_obj TYPE (iv_testname).
-      CATCH cx_sy_create_object_error.
-        _raise 'test not found'.
-    ENDTRY.
-
-    ASSIGN lo_obj->('VERSION') TO <lv_version>.
-    ASSERT sy-subrc = 0.
-
-    rv_version = <lv_version>.
-
-  ENDMETHOD.
-
   METHOD initialize.
 
     FIELD-SYMBOLS: <ls_class> LIKE LINE OF s_class.
@@ -923,43 +978,6 @@ CLASS lcl_updownci IMPLEMENTATION.
     <ls_class>-sign   = 'I'.
     <ls_class>-option = 'CP'.
     <ls_class>-low    = 'ZCL_AOC_*'.
-
-  ENDMETHOD.
-
-  METHOD read_variant.
-
-    cl_ci_checkvariant=>get_ref(
-      EXPORTING
-        p_user            = p_user
-        p_name            = p_name
-      RECEIVING
-        p_ref             = ro_variant
-      EXCEPTIONS
-        chkv_not_exists   = 1
-        missing_parameter = 2
-        OTHERS            = 3 ).
-    IF sy-subrc = 0.
-      ro_variant->get_info(
-        EXCEPTIONS
-          could_not_read_variant = 1
-          OTHERS                 = 2 ).
-    ELSEIF sy-subrc = 1 AND iv_create = abap_true.
-      cl_ci_checkvariant=>create(
-        EXPORTING
-          p_user              = p_user
-          p_name              = p_name
-        RECEIVING
-          p_ref               = ro_variant
-        EXCEPTIONS
-          chkv_already_exists = 1
-          locked              = 2
-          error_in_enqueue    = 3
-          not_authorized      = 4
-          OTHERS              = 5 ).
-    ENDIF.
-    IF sy-subrc <> 0.
-      _raise 'error reading/creating variant'.
-    ENDIF.
 
   ENDMETHOD.
 
@@ -992,7 +1010,7 @@ CLASS lcl_updownci IMPLEMENTATION.
     FIELD-SYMBOLS: <ls_variant> LIKE LINE OF lo_variant->variant.
 
 
-    lo_variant = read_variant( ).
+    lo_variant = lcl_variant=>read( ).
 
     CREATE OBJECT go_xml.
 
@@ -1030,7 +1048,7 @@ CLASS lcl_updownci IMPLEMENTATION.
       RETURN.
     ENDIF.
 
-    lo_variant = read_variant( abap_true ).
+    lo_variant = lcl_variant=>read( abap_true ).
     lo_variant->enter_change( ).
     lt_variant = lo_variant->variant.
 
@@ -1049,18 +1067,22 @@ CLASS lcl_updownci IMPLEMENTATION.
                      iv_class   = lv_testname ).
 
       WRITE: / lv_testname, lv_version.
-      IF get_check_version( lv_testname ) <> lv_version.
-        WRITE: / 'Version mismatch' COLOR 6.                "#EC NOTEXT
-      ELSE.
-        WRITE: / 'Version match'.                           "#EC NOTEXT
+      TRY.
+          IF lcl_variant=>version( lv_testname ) <> lv_version.
+            WRITE: / 'Version mismatch' COLOR 6.            "#EC NOTEXT
+          ELSE.
+            WRITE: / 'Version match'.                       "#EC NOTEXT
 
-        update_variant(
-          EXPORTING
-            iv_testname   = lv_testname
-            ii_attributes = li_attributes
-          CHANGING
-            ct_variant    = lt_variant ).
-      ENDIF.
+            update_variant(
+              EXPORTING
+                iv_testname   = lv_testname
+                ii_attributes = li_attributes
+              CHANGING
+                ct_variant    = lt_variant ).
+          ENDIF.
+        CATCH lcx_test_not_found.
+          WRITE: / 'Test not found, skip'.                  "#EC NOTEXT
+      ENDTRY.
       WRITE: /.
 
       go_xml->read_variant(
@@ -1093,14 +1115,14 @@ CLASS lcl_updownci IMPLEMENTATION.
 
       CLEAR ls_variant.
       ls_variant-testname = iv_testname.
-      ls_variant-version = get_check_version( iv_testname ).
+      ls_variant-version = lcl_variant=>version( iv_testname ).
       INSERT ls_variant INTO TABLE ct_variant.
 
       READ TABLE ct_variant ASSIGNING <ls_variant> WITH KEY testname = iv_testname.
       ASSERT sy-subrc = 0.
     ENDIF.
 
-    IF get_check_has_attributes( iv_testname ) = abap_true.
+    IF lcl_variant=>has_attributes( iv_testname ) = abap_true.
       upload_attributes(
         EXPORTING
           iv_testname   = iv_testname
