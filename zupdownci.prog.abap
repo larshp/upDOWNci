@@ -46,6 +46,18 @@ DEFINE _raise.
       iv_text = &1.                                         "#EC NOTEXT
 END-OF-DEFINITION.
 
+TYPES: BEGIN OF ty_wdy_ci_test_conventions ##NEEDED, " used dynamically
+         init_done       TYPE abap_bool,
+         db_access       TYPE abap_bool,
+         file_access     TYPE abap_bool,
+         obsolete_screen TYPE abap_bool,
+         program_flow    TYPE abap_bool,
+         system_call     TYPE abap_bool,
+         param_check     TYPE abap_bool,
+         include_source  TYPE abap_bool,
+         call_me         TYPE abap_bool,
+       END OF ty_wdy_ci_test_conventions.
+
 CLASS lcx_exception DEFINITION INHERITING FROM cx_static_check FINAL.
 
   PUBLIC SECTION.
@@ -305,6 +317,8 @@ CLASS lcl_xml IMPLEMENTATION.
 
 
     CLEAR ev_testname.
+    CLEAR ei_attributes.
+    CLEAR ev_version.
 
     li_child = mi_iterator->get_next( ).
     IF li_child IS INITIAL.
@@ -498,6 +512,7 @@ CLASS lcl_xml IMPLEMENTATION.
       li_parent = mi_xml_doc->create_element( lv_name ).
       ii_parent->append_child( li_parent ).
       ASSIGN COMPONENT <ls_comp>-name OF STRUCTURE ig_data TO <lg_any>.
+      ASSERT sy-subrc = 0.
 
       lo_typedescr = cl_abap_typedescr=>describe_by_data( <lg_any> ).
       CASE lo_typedescr->kind.
@@ -532,6 +547,7 @@ CLASS lcl_xml IMPLEMENTATION.
 
     LOOP AT lo_structdescr->components ASSIGNING <ls_comp>.
       ASSIGN COMPONENT <ls_comp>-name OF STRUCTURE cg_data TO <lg_any>.
+      ASSERT sy-subrc = 0.
 
       lv_name = <ls_comp>-name.
       li_parent = find_node( ii_node = ii_parent
@@ -1145,6 +1161,7 @@ CLASS lcl_updownci IMPLEMENTATION.
     FIELD-SYMBOLS: <ls_type>   LIKE LINE OF lt_types,
                    <ls_memory> LIKE LINE OF et_memory.
 
+    CLEAR et_memory.
 
     lv_include    = lcl_class=>find_include( iv_class ).
     lt_source     = read_source( lv_include ).
@@ -1322,9 +1339,13 @@ CLASS lcl_updownci IMPLEMENTATION.
       IF sy-subrc = 0.
         lv_type = <ls_attr>-type.
       ENDIF.
+
       IF lv_type IS INITIAL.
-* special case
-        lv_type = 'ABAP_BOOL'.
+        IF iv_class = 'CL_WDY_CI_TEST_CONVENTIONS'.
+          lv_type = 'TY_WDY_CI_TEST_CONVENTIONS'.
+        ELSE.
+          lv_type = 'ABAP_BOOL'.
+        ENDIF.
       ENDIF.
 
       APPEND INITIAL LINE TO rt_types ASSIGNING <ls_type>.
