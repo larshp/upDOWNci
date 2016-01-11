@@ -1366,6 +1366,10 @@ CLASS lcl_updownci IMPLEMENTATION.
     FIND FIRST OCCURRENCE OF 'from data buffer p_attributes' IN lv_source
       IGNORING CASE MATCH OFFSET lv_offset.                 "#EC NOTEXT
     IF sy-subrc <> 0.
+      FIND FIRST OCCURRENCE OF 'from data buffer  p_attributes' IN lv_source
+        IGNORING CASE MATCH OFFSET lv_offset.               "#EC NOTEXT
+    ENDIF.
+    IF sy-subrc <> 0.
       _raise '"from data buffer" not found'.
     ENDIF.
     lv_source = lv_source(lv_offset).
