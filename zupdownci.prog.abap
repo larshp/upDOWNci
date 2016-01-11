@@ -46,7 +46,7 @@ DEFINE _raise.
       iv_text = &1.                                         "#EC NOTEXT
 END-OF-DEFINITION.
 
-TYPES: BEGIN OF ty_wdy_ci_test_conventions ##NEEDED, " used dynamically
+TYPES: BEGIN OF ty_wdy_ci_test_conventions ##needed, " used dynamically
          init_done       TYPE abap_bool,
          db_access       TYPE abap_bool,
          file_access     TYPE abap_bool,
@@ -58,6 +58,11 @@ TYPES: BEGIN OF ty_wdy_ci_test_conventions ##NEEDED, " used dynamically
          call_me         TYPE abap_bool,
        END OF ty_wdy_ci_test_conventions.
 
+*----------------------------------------------------------------------*
+*       CLASS lcx_exception DEFINITION
+*----------------------------------------------------------------------*
+*
+*----------------------------------------------------------------------*
 CLASS lcx_exception DEFINITION INHERITING FROM cx_static_check FINAL.
 
   PUBLIC SECTION.
@@ -66,8 +71,13 @@ CLASS lcx_exception DEFINITION INHERITING FROM cx_static_check FINAL.
     METHODS constructor
       IMPORTING iv_text TYPE string.
 
-ENDCLASS.
+ENDCLASS.                    "lcx_exception DEFINITION
 
+*----------------------------------------------------------------------*
+*       CLASS lcx_exception IMPLEMENTATION
+*----------------------------------------------------------------------*
+*
+*----------------------------------------------------------------------*
 CLASS lcx_exception IMPLEMENTATION.
 
   METHOD constructor.
@@ -75,31 +85,51 @@ CLASS lcx_exception IMPLEMENTATION.
     mv_text = iv_text.
   ENDMETHOD.                    "CONSTRUCTOR
 
-ENDCLASS.
+ENDCLASS.                    "lcx_exception IMPLEMENTATION
 
+*----------------------------------------------------------------------*
+*       CLASS lcx_test_not_found DEFINITION
+*----------------------------------------------------------------------*
+*
+*----------------------------------------------------------------------*
 CLASS lcx_test_not_found DEFINITION INHERITING FROM cx_static_check FINAL.
 
-ENDCLASS.
+ENDCLASS.                    "lcx_test_not_found DEFINITION
 
+*----------------------------------------------------------------------*
+*       CLASS lcx_test_not_found IMPLEMENTATION
+*----------------------------------------------------------------------*
+*
+*----------------------------------------------------------------------*
 CLASS lcx_test_not_found IMPLEMENTATION.
 
-ENDCLASS.
+ENDCLASS.                    "lcx_test_not_found IMPLEMENTATION
 
+*----------------------------------------------------------------------*
+*       CLASS lcl_class DEFINITION
+*----------------------------------------------------------------------*
+*
+*----------------------------------------------------------------------*
 CLASS lcl_class DEFINITION FINAL.
 
   PUBLIC SECTION.
     CLASS-METHODS:
       find_include
         IMPORTING iv_class          TYPE seoclsname
-        RETURNING VALUE(rv_include) TYPE program
+        RETURNING value(rv_include) TYPE program
         RAISING   cx_static_check,
       attributes
         IMPORTING iv_class             TYPE seoclsname
-        RETURNING VALUE(rt_attributes) TYPE seo_attributes
+        RETURNING value(rt_attributes) TYPE seo_attributes
         RAISING   cx_static_check.
 
-ENDCLASS.
+ENDCLASS.                    "lcl_class DEFINITION
 
+*----------------------------------------------------------------------*
+*       CLASS lcl_class IMPLEMENTATION
+*----------------------------------------------------------------------*
+*
+*----------------------------------------------------------------------*
 CLASS lcl_class IMPLEMENTATION.
 
   METHOD find_include.
@@ -129,7 +159,7 @@ CLASS lcl_class IMPLEMENTATION.
       _raise 'error while finding method include'.
     ENDIF.
 
-  ENDMETHOD.
+  ENDMETHOD.                    "find_include
 
   METHOD attributes.
 
@@ -148,10 +178,15 @@ CLASS lcl_class IMPLEMENTATION.
       APPEND LINES OF lt_attributes TO rt_attributes.
     ENDIF.
 
-  ENDMETHOD.
+  ENDMETHOD.                    "attributes
 
-ENDCLASS.
+ENDCLASS.                    "lcl_class IMPLEMENTATION
 
+*----------------------------------------------------------------------*
+*       CLASS lcl_xml DEFINITION
+*----------------------------------------------------------------------*
+*
+*----------------------------------------------------------------------*
 CLASS lcl_xml DEFINITION FINAL.
 
   PUBLIC SECTION.
@@ -173,7 +208,7 @@ CLASS lcl_xml DEFINITION FINAL.
         CHANGING  cg_data       TYPE data
         RAISING   lcx_exception,
       render
-        RETURNING VALUE(rv_xml) TYPE string.
+        RETURNING value(rv_xml) TYPE string.
 
   PRIVATE SECTION.
 
@@ -187,7 +222,7 @@ CLASS lcl_xml DEFINITION FINAL.
       find_node
         IMPORTING ii_node        TYPE REF TO if_ixml_node
                   iv_name        TYPE string
-        RETURNING VALUE(ri_node) TYPE REF TO if_ixml_node,
+        RETURNING value(ri_node) TYPE REF TO if_ixml_node,
       structure_export
         IMPORTING ig_data   TYPE data
                   ii_parent TYPE REF TO if_ixml_element
@@ -213,8 +248,13 @@ CLASS lcl_xml DEFINITION FINAL.
       error
         IMPORTING ii_parser TYPE REF TO if_ixml_parser.
 
-ENDCLASS.
+ENDCLASS.                    "lcl_xml DEFINITION
 
+*----------------------------------------------------------------------*
+*       CLASS lcl_xml IMPLEMENTATION
+*----------------------------------------------------------------------*
+*
+*----------------------------------------------------------------------*
 CLASS lcl_xml IMPLEMENTATION.
 
   METHOD constructor.
@@ -246,7 +286,7 @@ CLASS lcl_xml IMPLEMENTATION.
       mi_xml_doc->append_child( mi_root ).
     ENDIF.
 
-  ENDMETHOD.
+  ENDMETHOD.                    "constructor
 
   METHOD error.
 
@@ -279,7 +319,7 @@ CLASS lcl_xml IMPLEMENTATION.
       ENDDO.
     ENDIF.
 
-  ENDMETHOD.
+  ENDMETHOD.                    "error
 
   METHOD write_variant.
 
@@ -309,7 +349,7 @@ CLASS lcl_xml IMPLEMENTATION.
                         ii_parent = li_attr ).
     ENDIF.
 
-  ENDMETHOD.
+  ENDMETHOD.                    "write_variant
 
   METHOD read_variant.
 
@@ -331,7 +371,7 @@ CLASS lcl_xml IMPLEMENTATION.
     ei_attributes = find_node( ii_node = li_child
                                 iv_name = 'ATTRIBUTES' ).
 
-  ENDMETHOD.
+  ENDMETHOD.                    "read_variant
 
   METHOD find_node.
 
@@ -349,7 +389,7 @@ CLASS lcl_xml IMPLEMENTATION.
       li_node = li_iterator->get_next( ).
     ENDWHILE.
 
-  ENDMETHOD.
+  ENDMETHOD.                    "find_node
 
   METHOD read_attributes.
 
@@ -359,7 +399,7 @@ CLASS lcl_xml IMPLEMENTATION.
       CHANGING
         cg_data   = cg_data ).
 
-  ENDMETHOD.
+  ENDMETHOD.                    "read_attributes
 
   METHOD render.
 
@@ -384,7 +424,7 @@ CLASS lcl_xml IMPLEMENTATION.
       IN rv_xml
       WITH '<?xml version="1.0" encoding="utf-8"?>'.
 
-  ENDMETHOD.
+  ENDMETHOD.                    "render
 
   METHOD table_export.
 
@@ -419,7 +459,7 @@ CLASS lcl_xml IMPLEMENTATION.
       ENDCASE.
     ENDLOOP.
 
-  ENDMETHOD.
+  ENDMETHOD.                    "table_export
 
   METHOD table_import.
 
@@ -466,7 +506,7 @@ CLASS lcl_xml IMPLEMENTATION.
       li_node = li_iterator->get_next( ).
     ENDWHILE.
 
-  ENDMETHOD.
+  ENDMETHOD.                    "table_import
 
   METHOD simple_export.
 
@@ -478,7 +518,7 @@ CLASS lcl_xml IMPLEMENTATION.
     li_text = mi_xml_doc->create_text( lv_string ).
     ii_parent->append_child( li_text ).
 
-  ENDMETHOD.
+  ENDMETHOD.                    "simple_export
 
   METHOD simple_import.
 
@@ -492,7 +532,7 @@ CLASS lcl_xml IMPLEMENTATION.
       CLEAR cv_data.
     ENDIF.
 
-  ENDMETHOD.
+  ENDMETHOD.                    "simple_import
 
   METHOD structure_export.
 
@@ -530,7 +570,7 @@ CLASS lcl_xml IMPLEMENTATION.
       ENDCASE.
     ENDLOOP.
 
-  ENDMETHOD.
+  ENDMETHOD.                    "structure_export
 
   METHOD structure_import.
 
@@ -572,10 +612,15 @@ CLASS lcl_xml IMPLEMENTATION.
       ENDCASE.
     ENDLOOP.
 
-  ENDMETHOD.
+  ENDMETHOD.                    "structure_import
 
-ENDCLASS.
+ENDCLASS.                    "lcl_xml IMPLEMENTATION
 
+*----------------------------------------------------------------------*
+*       CLASS lcl_file DEFINITION
+*----------------------------------------------------------------------*
+*
+*----------------------------------------------------------------------*
 CLASS lcl_file DEFINITION FINAL.
 
   PUBLIC SECTION.
@@ -584,11 +629,16 @@ CLASS lcl_file DEFINITION FINAL.
         IMPORTING iv_xml TYPE string
         RAISING   cx_bcs lcx_exception,
       upload
-        RETURNING VALUE(rv_xml) TYPE string
+        RETURNING value(rv_xml) TYPE string
         RAISING   cx_bcs lcx_exception.
 
-ENDCLASS.
+ENDCLASS.                    "lcl_file DEFINITION
 
+*----------------------------------------------------------------------*
+*       CLASS lcl_file IMPLEMENTATION
+*----------------------------------------------------------------------*
+*
+*----------------------------------------------------------------------*
 CLASS lcl_file IMPLEMENTATION.
 
   METHOD upload.
@@ -657,7 +707,7 @@ CLASS lcl_file IMPLEMENTATION.
 
     CONCATENATE LINES OF lt_data INTO rv_xml.
 
-  ENDMETHOD.
+  ENDMETHOD.                    "upload
 
   METHOD download.
 
@@ -738,36 +788,46 @@ CLASS lcl_file IMPLEMENTATION.
       _raise 'error from gui_download'.
     ENDIF.
 
-  ENDMETHOD.
+  ENDMETHOD.                    "download
 
-ENDCLASS.
+ENDCLASS.                    "lcl_file IMPLEMENTATION
 
+*----------------------------------------------------------------------*
+*       CLASS lcl_variant DEFINITION
+*----------------------------------------------------------------------*
+*
+*----------------------------------------------------------------------*
 CLASS lcl_variant DEFINITION FINAL.
 
   PUBLIC SECTION.
     CLASS-METHODS:
       version
         IMPORTING iv_testname       TYPE sci_tstval-testname
-        RETURNING VALUE(rv_version) TYPE sci_tstval-version
+        RETURNING value(rv_version) TYPE sci_tstval-version
         RAISING   lcx_test_not_found,
       has_attributes
         IMPORTING iv_testname              TYPE sci_tstval-testname
-        RETURNING VALUE(rv_has_attributes) TYPE sychar01
+        RETURNING value(rv_has_attributes) TYPE sychar01
         RAISING   lcx_test_not_found,
       read
         IMPORTING iv_create         TYPE abap_bool DEFAULT abap_false
-        RETURNING VALUE(ro_variant) TYPE REF TO cl_ci_checkvariant
+        RETURNING value(ro_variant) TYPE REF TO cl_ci_checkvariant
         RAISING   lcx_exception.
 
   PRIVATE SECTION.
     CLASS-METHODS:
       create_object
         IMPORTING iv_testname   TYPE sci_tstval-testname
-        RETURNING VALUE(ro_obj) TYPE REF TO object
+        RETURNING value(ro_obj) TYPE REF TO object
         RAISING   lcx_test_not_found.
 
-ENDCLASS.
+ENDCLASS.                    "lcl_variant DEFINITION
 
+*----------------------------------------------------------------------*
+*       CLASS lcl_variant IMPLEMENTATION
+*----------------------------------------------------------------------*
+*
+*----------------------------------------------------------------------*
 CLASS lcl_variant IMPLEMENTATION.
 
   METHOD create_object.
@@ -778,7 +838,7 @@ CLASS lcl_variant IMPLEMENTATION.
         RAISE EXCEPTION TYPE lcx_test_not_found.
     ENDTRY.
 
-  ENDMETHOD.
+  ENDMETHOD.                    "create_object
 
   METHOD has_attributes.
 
@@ -794,7 +854,7 @@ CLASS lcl_variant IMPLEMENTATION.
 
     rv_has_attributes = <lv_has_attributes>.
 
-  ENDMETHOD.
+  ENDMETHOD.                    "has_attributes
 
   METHOD version.
 
@@ -810,7 +870,7 @@ CLASS lcl_variant IMPLEMENTATION.
 
     rv_version = <lv_version>.
 
-  ENDMETHOD.
+  ENDMETHOD.                    "version
 
   METHOD read.
 
@@ -847,10 +907,15 @@ CLASS lcl_variant IMPLEMENTATION.
       _raise 'error reading/creating variant'.
     ENDIF.
 
-  ENDMETHOD.
+  ENDMETHOD.                    "read
 
-ENDCLASS.
+ENDCLASS.                    "lcl_variant IMPLEMENTATION
 
+*----------------------------------------------------------------------*
+*       CLASS lcl_updownci DEFINITION
+*----------------------------------------------------------------------*
+*
+*----------------------------------------------------------------------*
 CLASS lcl_updownci DEFINITION FINAL.
 
   PUBLIC SECTION.
@@ -911,15 +976,15 @@ CLASS lcl_updownci DEFINITION FINAL.
         RAISING   cx_static_check,
       read_source
         IMPORTING iv_include       TYPE program
-        RETURNING VALUE(rt_source) TYPE abaptxt255_tab,
+        RETURNING value(rt_source) TYPE abaptxt255_tab,
       parse
         IMPORTING it_source            TYPE abaptxt255_tab
-        RETURNING VALUE(rt_parameters) TYPE ty_parameter_tt
+        RETURNING value(rt_parameters) TYPE ty_parameter_tt
         RAISING   lcx_exception,
       find_types
         IMPORTING iv_class        TYPE seoclsname
                   it_parameters   TYPE ty_parameter_tt
-        RETURNING VALUE(rt_types) TYPE ty_type_tt
+        RETURNING value(rt_types) TYPE ty_type_tt
         RAISING   cx_static_check,
       show_progress
         IMPORTING iv_current TYPE i
@@ -927,11 +992,16 @@ CLASS lcl_updownci DEFINITION FINAL.
                   iv_class   TYPE seoclsname,
       create_structure
         IMPORTING it_types       TYPE ty_type_tt
-        RETURNING VALUE(rr_data) TYPE REF TO data
+        RETURNING value(rr_data) TYPE REF TO data
         RAISING   lcx_exception.
 
-ENDCLASS.
+ENDCLASS.                    "lcl_updownci DEFINITION
 
+*----------------------------------------------------------------------*
+*       CLASS lcl_updownci IMPLEMENTATION
+*----------------------------------------------------------------------*
+*
+*----------------------------------------------------------------------*
 CLASS lcl_updownci IMPLEMENTATION.
 
   METHOD upload_attributes.
@@ -978,7 +1048,7 @@ CLASS lcl_updownci IMPLEMENTATION.
       WRITE: / 'Attributes match'.                          "#EC NOTEXT
     ENDIF.
 
-  ENDMETHOD.
+  ENDMETHOD.                    "upload_attributes
 
   METHOD initialize.
 
@@ -995,7 +1065,7 @@ CLASS lcl_updownci IMPLEMENTATION.
     <ls_class>-option = 'CP'.
     <ls_class>-low    = 'ZCL_AOC_*'.
 
-  ENDMETHOD.
+  ENDMETHOD.                    "initialize
 
   METHOD run.
 
@@ -1015,7 +1085,7 @@ CLASS lcl_updownci IMPLEMENTATION.
         MESSAGE lx_static TYPE 'E'.
     ENDTRY.
 
-  ENDMETHOD.
+  ENDMETHOD.                    "run
 
   METHOD download.
 
@@ -1047,7 +1117,7 @@ CLASS lcl_updownci IMPLEMENTATION.
     lv_xml = go_xml->render( ).
     lcl_file=>download( lv_xml ).
 
-  ENDMETHOD.
+  ENDMETHOD.                    "download
 
   METHOD upload.
 
@@ -1114,7 +1184,7 @@ CLASS lcl_updownci IMPLEMENTATION.
       lo_variant->leave_change( ).
     ENDIF.
 
-  ENDMETHOD.
+  ENDMETHOD.                    "upload
 
   METHOD update_variant.
 
@@ -1149,7 +1219,7 @@ CLASS lcl_updownci IMPLEMENTATION.
       WRITE: / 'No attributes'.                             "#EC NOTEXT
     ENDIF.
 
-  ENDMETHOD.
+  ENDMETHOD.                    "update_variant
 
   METHOD build_memory.
 
@@ -1183,7 +1253,7 @@ CLASS lcl_updownci IMPLEMENTATION.
       ENDIF.
     ENDLOOP.
 
-  ENDMETHOD.
+  ENDMETHOD.                    "build_memory
 
   METHOD download_attributes.
 
@@ -1215,7 +1285,7 @@ CLASS lcl_updownci IMPLEMENTATION.
                              ig_data     = <lg_data> ).
     ENDIF.
 
-  ENDMETHOD.
+  ENDMETHOD.                    "download_attributes
 
   METHOD create_structure.
 
@@ -1246,9 +1316,12 @@ CLASS lcl_updownci IMPLEMENTATION.
         _raise 'error creating structure'.
     ENDTRY.
 
-  ENDMETHOD.
+  ENDMETHOD.                    "create_structure
 
   METHOD read_source.
+
+    DATA: lv_source LIKE LINE OF rt_source.
+
 
     CALL FUNCTION 'RPY_PROGRAM_READ'
       EXPORTING
@@ -1260,10 +1333,16 @@ CLASS lcl_updownci IMPLEMENTATION.
         cancelled        = 1
         not_found        = 2
         permission_error = 3
-        OTHERS           = 4. "#EC CI_SUBRC
+        OTHERS           = 4.                             "#EC CI_SUBRC
     ASSERT sy-subrc = 0.
 
-  ENDMETHOD.
+    LOOP AT rt_source INTO lv_source.
+      IF lv_source(1) = '*'.
+        DELETE rt_source INDEX sy-tabix.
+      ENDIF.
+    ENDLOOP.
+
+  ENDMETHOD.                    "read_source
 
   METHOD parse.
 
@@ -1311,7 +1390,7 @@ CLASS lcl_updownci IMPLEMENTATION.
 
     ENDLOOP.
 
-  ENDMETHOD.
+  ENDMETHOD.                    "parse
 
   METHOD find_types.
 
@@ -1356,7 +1435,7 @@ CLASS lcl_updownci IMPLEMENTATION.
 
     ENDLOOP.
 
-  ENDMETHOD.
+  ENDMETHOD.                    "find_types
 
   METHOD show_progress.
 
@@ -1372,9 +1451,9 @@ CLASS lcl_updownci IMPLEMENTATION.
         percentage = lv_pct
         text       = iv_class.
 
-  ENDMETHOD.
+  ENDMETHOD.                    "show_progress
 
-ENDCLASS.
+ENDCLASS.                    "lcl_updownci IMPLEMENTATION
 
 INITIALIZATION.
   lcl_updownci=>initialize( ).
