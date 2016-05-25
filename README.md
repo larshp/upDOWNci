@@ -3,7 +3,7 @@ Upload and download [SAP Code Inspector](http://wiki.scn.sap.com/wiki/display/AB
 
 - Standalone report
 - Version requirement: 702
-- MIT License
+- MIT License 
 
 ### Installation
 Copy the source code into a new report or install via [abapGit](https://github.com/larshp/abapGit)
