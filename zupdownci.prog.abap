@@ -5,6 +5,7 @@ REPORT zupdownci.
 * Upload and download SAP Code Inspector variants in XML format
 * see https://github.com/larshp/upDOWNci
 *
+*
 *********************************************************************************
 * The MIT License (MIT)
 *
