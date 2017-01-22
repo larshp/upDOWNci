@@ -5,50 +5,24 @@
    <PROGDIR>
     <NAME>ZUPDOWNCI</NAME>
     <STATE>A</STATE>
-    <SQLX/>
-    <EDTX/>
     <VARCL>X</VARCL>
-    <DBAPL/>
-    <DBNA/>
-    <CLAS/>
-    <TYPE/>
-    <OCCURS/>
     <SUBC>1</SUBC>
-    <APPL/>
-    <SECU/>
-    <CNAM/>
-    <CDAT>0000-00-00</CDAT>
-    <UNAM/>
-    <UDAT>0000-00-00</UDAT>
-    <VERN/>
-    <LEVL/>
-    <RSTAT/>
-    <RMAND/>
     <RLOAD>E</RLOAD>
     <FIXPT>X</FIXPT>
-    <SSET/>
-    <SDATE>0000-00-00</SDATE>
-    <STIME/>
-    <IDATE>0000-00-00</IDATE>
-    <ITIME/>
-    <LDBNAME/>
     <UCCHECK>X</UCCHECK>
    </PROGDIR>
    <DYNPROS/>
    <TPOOL>
     <item>
      <ID>R</ID>
-     <KEY/>
      <ENTRY>upDOWNci</ENTRY>
      <LENGTH>8</LENGTH>
-     <SPLIT/>
     </item>
     <item>
      <ID>S</ID>
      <KEY>P_DOWN</KEY>
      <ENTRY>Download</ENTRY>
      <LENGTH>16</LENGTH>
-     <SPLIT/>
     </item>
     <item>
      <ID>S</ID>
@@ -62,14 +36,12 @@
      <KEY>P_TEST</KEY>
      <ENTRY>Test Mode</ENTRY>
      <LENGTH>17</LENGTH>
-     <SPLIT/>
     </item>
     <item>
      <ID>S</ID>
      <KEY>P_UP</KEY>
      <ENTRY>Upload</ENTRY>
      <LENGTH>14</LENGTH>
-     <SPLIT/>
     </item>
     <item>
      <ID>S</ID>
