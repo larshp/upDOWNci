@@ -41,8 +41,8 @@ PARAMETERS: p_down TYPE c RADIOBUTTON GROUP g1 DEFAULT 'X',
             p_test TYPE c AS CHECKBOX DEFAULT abap_true.
 
 DEFINE _raise.
-  raise exception type lcx_exception
-    exporting
+  RAISE EXCEPTION TYPE lcx_exception
+    EXPORTING
       iv_text = &1.                                         "#EC NOTEXT
 END-OF-DEFINITION.
 
@@ -116,11 +116,11 @@ CLASS lcl_class DEFINITION FINAL.
     CLASS-METHODS:
       find_include
         IMPORTING iv_class          TYPE seoclsname
-        RETURNING value(rv_include) TYPE program
+        RETURNING VALUE(rv_include) TYPE program
         RAISING   cx_static_check,
       attributes
         IMPORTING iv_class             TYPE seoclsname
-        RETURNING value(rt_attributes) TYPE seo_attributes
+        RETURNING VALUE(rt_attributes) TYPE seo_attributes
         RAISING   cx_static_check.
 
 ENDCLASS.                    "lcl_class DEFINITION
@@ -192,7 +192,8 @@ CLASS lcl_xml DEFINITION FINAL.
   PUBLIC SECTION.
     METHODS:
       constructor
-        IMPORTING iv_xml TYPE string OPTIONAL,
+        IMPORTING iv_xml TYPE string OPTIONAL
+        RAISING   lcx_exception,
       write_variant
         IMPORTING ig_data     TYPE data OPTIONAL
                   iv_testname TYPE sci_tstval-testname
@@ -208,7 +209,7 @@ CLASS lcl_xml DEFINITION FINAL.
         CHANGING  cg_data       TYPE data
         RAISING   lcx_exception,
       render
-        RETURNING value(rv_xml) TYPE string.
+        RETURNING VALUE(rv_xml) TYPE string.
 
   PRIVATE SECTION.
 
@@ -222,7 +223,7 @@ CLASS lcl_xml DEFINITION FINAL.
       find_node
         IMPORTING ii_node        TYPE REF TO if_ixml_node
                   iv_name        TYPE string
-        RETURNING value(ri_node) TYPE REF TO if_ixml_node,
+        RETURNING VALUE(ri_node) TYPE REF TO if_ixml_node,
       structure_export
         IMPORTING ig_data   TYPE data
                   ii_parent TYPE REF TO if_ixml_element
@@ -275,6 +276,7 @@ CLASS lcl_xml IMPLEMENTATION.
                                           document       = mi_xml_doc ).
       IF li_parser->parse( ) <> 0.
         error( li_parser ).
+        RAISE EXCEPTION TYPE lcx_exception EXPORTING iv_text = 'XML error'.
       ENDIF.
 
       li_istream->close( ).
@@ -629,7 +631,7 @@ CLASS lcl_file DEFINITION FINAL.
         IMPORTING iv_xml TYPE string
         RAISING   cx_bcs lcx_exception,
       upload
-        RETURNING value(rv_xml) TYPE string
+        RETURNING VALUE(rv_xml) TYPE string
         RAISING   cx_bcs lcx_exception.
 
 ENDCLASS.                    "lcl_file DEFINITION
@@ -803,22 +805,22 @@ CLASS lcl_variant DEFINITION FINAL.
     CLASS-METHODS:
       version
         IMPORTING iv_testname       TYPE sci_tstval-testname
-        RETURNING value(rv_version) TYPE sci_tstval-version
+        RETURNING VALUE(rv_version) TYPE sci_tstval-version
         RAISING   lcx_test_not_found,
       has_attributes
         IMPORTING iv_testname              TYPE sci_tstval-testname
-        RETURNING value(rv_has_attributes) TYPE sychar01
+        RETURNING VALUE(rv_has_attributes) TYPE sychar01
         RAISING   lcx_test_not_found,
       read
         IMPORTING iv_create         TYPE abap_bool DEFAULT abap_false
-        RETURNING value(ro_variant) TYPE REF TO cl_ci_checkvariant
+        RETURNING VALUE(ro_variant) TYPE REF TO cl_ci_checkvariant
         RAISING   lcx_exception.
 
   PRIVATE SECTION.
     CLASS-METHODS:
       create_object
         IMPORTING iv_testname   TYPE sci_tstval-testname
-        RETURNING value(ro_obj) TYPE REF TO object
+        RETURNING VALUE(ro_obj) TYPE REF TO object
         RAISING   lcx_test_not_found.
 
 ENDCLASS.                    "lcl_variant DEFINITION
@@ -976,15 +978,15 @@ CLASS lcl_updownci DEFINITION FINAL.
         RAISING   cx_static_check,
       read_source
         IMPORTING iv_include       TYPE program
-        RETURNING value(rt_source) TYPE abaptxt255_tab,
+        RETURNING VALUE(rt_source) TYPE abaptxt255_tab,
       parse
         IMPORTING it_source            TYPE abaptxt255_tab
-        RETURNING value(rt_parameters) TYPE ty_parameter_tt
+        RETURNING VALUE(rt_parameters) TYPE ty_parameter_tt
         RAISING   lcx_exception,
       find_types
         IMPORTING iv_class        TYPE seoclsname
                   it_parameters   TYPE ty_parameter_tt
-        RETURNING value(rt_types) TYPE ty_type_tt
+        RETURNING VALUE(rt_types) TYPE ty_type_tt
         RAISING   cx_static_check,
       show_progress
         IMPORTING iv_current TYPE i
@@ -992,7 +994,7 @@ CLASS lcl_updownci DEFINITION FINAL.
                   iv_class   TYPE seoclsname,
       create_structure
         IMPORTING it_types       TYPE ty_type_tt
-        RETURNING value(rr_data) TYPE REF TO data
+        RETURNING VALUE(rr_data) TYPE REF TO data
         RAISING   lcx_exception.
 
 ENDCLASS.                    "lcl_updownci DEFINITION
