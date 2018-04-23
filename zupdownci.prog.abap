@@ -1380,6 +1380,9 @@ CLASS lcl_updownci IMPLEMENTATION.
         CONTINUE.
       ENDIF.
 
+* special handling for CL_SAUNIT_LEGACY_CI_CHECK
+      REPLACE FIRST OCCURRENCE OF 'me->' IN lv_source WITH ''.
+
       IF NOT <ls_parameter> IS ASSIGNED.
         APPEND INITIAL LINE TO rt_parameters ASSIGNING <ls_parameter>.
       ENDIF.
