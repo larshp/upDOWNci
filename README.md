@@ -1,4 +1,4 @@
-[![abaplint](http://abaplint.org/badges/larshp/upDOWNci)](http://abaplint.org/project/larshp/upDOWNci)
+[![abaplint](https://abaplint.org/badges/larshp/upDOWNci)](https://abaplint.org/project/larshp/upDOWNci)
 
 # upDOWNci
 Upload and download [SAP Code Inspector](http://wiki.scn.sap.com/wiki/display/ABAP/Code+Inspector) variants in XML format
