@@ -23,7 +23,7 @@ public section.
     importing
       !IV_USER type SCI_USER
       !IV_NAME type SCI_CHKV
-      !IT_CLASS type TY_CLASS_RANGE
+      !IT_CLASS type TY_CLASS_RANGE optional
     returning
       value(RV_XML) type STRING
     raising
@@ -306,7 +306,7 @@ CLASS ZCL_UPDOWNCI IMPLEMENTATION.
                              ig_data     = <lg_data> ).
     ENDIF.
 
-  ENDMETHOD.                    "download_attributes
+  ENDMETHOD.
 
 
   METHOD find_types.
@@ -343,6 +343,12 @@ CLASS ZCL_UPDOWNCI IMPLEMENTATION.
           lv_type = 'ABAP_BOOL'.
         ENDIF.
       ENDIF.
+
+      IF lv_name = 'M_OPTION' AND lv_field = 'SCAN_WEB_DYNPRO'.
+* special handling for CL_CI_TEST_ABAP_NAMING_NEW
+        lv_type = 'ABAP_BOOL'.
+      ENDIF.
+
 
       APPEND INITIAL LINE TO rt_types ASSIGNING <ls_type>.
       <ls_type>-parameter = <ls_parameter>-name.

@@ -1,24 +1,35 @@
-class ZCL_UPDOWNCI_CLASS definition
-  public
-  final
-  create public .
+CLASS zcl_updownci_class DEFINITION
+  PUBLIC
+  FINAL
+  CREATE PUBLIC .
 
-public section.
+  PUBLIC SECTION.
 
-  class-methods FIND_INCLUDE
-    importing
-      !IV_CLASS type SEOCLSNAME
-    returning
-      value(RV_INCLUDE) type PROGRAM
-    raising
-      CX_STATIC_CHECK .
-  class-methods ATTRIBUTES
-    importing
-      !IV_CLASS type SEOCLSNAME
-    returning
-      value(RT_ATTRIBUTES) type SEO_ATTRIBUTES
-    raising
-      CX_STATIC_CHECK .
+    TYPES: BEGIN OF ty_redirect,
+             from TYPE seoclsname,
+             to   TYPE seoclsname,
+           END OF ty_redirect.
+
+    CLASS-DATA: mt_redirect TYPE STANDARD TABLE OF ty_redirect WITH DEFAULT KEY.
+
+    CLASS-METHODS add_redirect
+      IMPORTING
+        !iv_from TYPE seoclsname
+        !iv_to   TYPE seoclsname .
+    CLASS-METHODS find_include
+      IMPORTING
+        !iv_class         TYPE seoclsname
+      RETURNING
+        VALUE(rv_include) TYPE program
+      RAISING
+        cx_static_check .
+    CLASS-METHODS attributes
+      IMPORTING
+        !iv_class            TYPE seoclsname
+      RETURNING
+        VALUE(rt_attributes) TYPE seo_attributes
+      RAISING
+        cx_static_check .
 ENDCLASS.
 
 
@@ -26,14 +37,31 @@ ENDCLASS.
 CLASS ZCL_UPDOWNCI_CLASS IMPLEMENTATION.
 
 
+  METHOD add_redirect.
+
+    FIELD-SYMBOLS: <ls_redirect> LIKE LINE OF mt_redirect.
+
+    APPEND INITIAL LINE TO mt_redirect ASSIGNING <ls_redirect>.
+    <ls_redirect>-from = iv_from.
+    <ls_redirect>-to   = iv_to.
+
+  ENDMETHOD.
+
+
   METHOD attributes.
 
     DATA: lt_attributes TYPE seo_attributes,
           lv_super      TYPE seoclsname,
+          ls_redirect   LIKE LINE OF mt_redirect,
           lo_class      TYPE REF TO cl_oo_class.
 
 
-    lo_class ?= cl_oo_class=>get_instance( iv_class ).
+    READ TABLE mt_redirect INTO ls_redirect WITH KEY from = iv_class.
+    IF sy-subrc = 0.
+      lo_class ?= cl_oo_class=>get_instance( ls_redirect-to ).
+    ELSE.
+      lo_class ?= cl_oo_class=>get_instance( iv_class ).
+    ENDIF.
 
     rt_attributes = lo_class->get_attributes( ).
 
@@ -48,12 +76,18 @@ CLASS ZCL_UPDOWNCI_CLASS IMPLEMENTATION.
 
   METHOD find_include.
 
-    DATA: lo_class  TYPE REF TO cl_oo_class,
-          lv_super  TYPE seoclsname,
-          ls_mtdkey TYPE seocpdkey.
+    DATA: lo_class    TYPE REF TO cl_oo_class,
+          lv_super    TYPE seoclsname,
+          ls_redirect LIKE LINE OF mt_redirect,
+          ls_mtdkey   TYPE seocpdkey.
 
 
-    ls_mtdkey-clsname = iv_class.
+    READ TABLE mt_redirect INTO ls_redirect WITH KEY from = iv_class.
+    IF sy-subrc = 0.
+      ls_mtdkey-clsname = ls_redirect-to.
+    ELSE.
+      ls_mtdkey-clsname = iv_class.
+    ENDIF.
     ls_mtdkey-cpdname = 'PUT_ATTRIBUTES'.
 
     cl_oo_classname_service=>get_method_include(
@@ -73,5 +107,5 @@ CLASS ZCL_UPDOWNCI_CLASS IMPLEMENTATION.
       RAISE EXCEPTION TYPE zcx_updownci_exception EXPORTING iv_text = 'error while finding method include'.
     ENDIF.
 
-  ENDMETHOD.                    "find_include
+  ENDMETHOD.
 ENDCLASS.
