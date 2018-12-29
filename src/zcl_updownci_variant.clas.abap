@@ -1,32 +1,33 @@
-class ZCL_UPDOWNCI_VARIANT definition
-  public
-  create public .
+CLASS zcl_updownci_variant DEFINITION
+  PUBLIC
+  CREATE PUBLIC .
 
-public section.
+  PUBLIC SECTION.
 
-  class-methods VERSION
-    importing
-      !IV_TESTNAME type SCI_TSTVAL-TESTNAME
-    returning
-      value(RV_VERSION) type SCI_TSTVAL-VERSION
-    raising
-      ZCX_UPDOWNCI_TEST_NOT_FOUND .
-  class-methods HAS_ATTRIBUTES
-    importing
-      !IV_TESTNAME type SCI_TSTVAL-TESTNAME
-    returning
-      value(RV_HAS_ATTRIBUTES) type SYCHAR01
-    raising
-      ZCX_UPDOWNCI_TEST_NOT_FOUND .
-  class-methods READ
-    importing
-      !IV_USER type SCI_USER
-      !IV_NAME type SCI_CHKV
-      !IV_CREATE type ABAP_BOOL default ABAP_FALSE
-    returning
-      value(RO_VARIANT) type ref to CL_CI_CHECKVARIANT
-    raising
-      ZCX_UPDOWNCI_EXCEPTION .
+    CLASS-METHODS version
+      IMPORTING
+        !iv_testname      TYPE sci_tstval-testname
+      RETURNING
+        VALUE(rv_version) TYPE sci_tstval-version
+      RAISING
+        zcx_updownci_test_not_found .
+    CLASS-METHODS has_attributes
+      IMPORTING
+        !iv_testname             TYPE sci_tstval-testname
+      RETURNING
+        VALUE(rv_has_attributes) TYPE sychar01
+      RAISING
+        zcx_updownci_test_not_found .
+    CLASS-METHODS read
+      IMPORTING
+        !iv_user          TYPE sci_user
+        !iv_name          TYPE sci_chkv
+        !iv_create        TYPE abap_bool DEFAULT abap_false
+      RETURNING
+        VALUE(ro_variant) TYPE REF TO cl_ci_checkvariant
+      RAISING
+        zcx_updownci_exception .
+  PROTECTED SECTION.
   PRIVATE SECTION.
     CLASS-METHODS:
       create_object

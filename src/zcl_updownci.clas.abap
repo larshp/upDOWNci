@@ -1,41 +1,42 @@
-class ZCL_UPDOWNCI definition
-  public
-  create public .
+CLASS zcl_updownci DEFINITION
+  PUBLIC
+  CREATE PUBLIC .
 
-public section.
+  PUBLIC SECTION.
 
-  types:
-    ty_class_range TYPE RANGE OF seoclsname .
-  types:
-    BEGIN OF ty_wdy_ci_test_conventions ##needed, " used dynamically
-             init_done       TYPE abap_bool,
-             db_access       TYPE abap_bool,
-             file_access     TYPE abap_bool,
-             obsolete_screen TYPE abap_bool,
-             program_flow    TYPE abap_bool,
-             system_call     TYPE abap_bool,
-             param_check     TYPE abap_bool,
-             include_source  TYPE abap_bool,
-             call_me         TYPE abap_bool,
-           END OF ty_wdy_ci_test_conventions .
+    TYPES:
+      ty_class_range TYPE RANGE OF seoclsname .
+    TYPES:
+      BEGIN OF ty_wdy_ci_test_conventions ##needed, " used dynamically
+        init_done       TYPE abap_bool,
+        db_access       TYPE abap_bool,
+        file_access     TYPE abap_bool,
+        obsolete_screen TYPE abap_bool,
+        program_flow    TYPE abap_bool,
+        system_call     TYPE abap_bool,
+        param_check     TYPE abap_bool,
+        include_source  TYPE abap_bool,
+        call_me         TYPE abap_bool,
+      END OF ty_wdy_ci_test_conventions .
 
-  class-methods BUILD_XML
-    importing
-      !IV_USER type SCI_USER
-      !IV_NAME type SCI_CHKV
-      !IT_CLASS type TY_CLASS_RANGE optional
-    returning
-      value(RV_XML) type STRING
-    raising
-      CX_STATIC_CHECK .
-  class-methods CREATE_FROM_XML
-    importing
-      !IV_XML type STRING
-      !IV_USER type SCI_USER
-      !IV_NAME type SCI_CHKV
-      !IV_TEST type ABAP_BOOL
-    raising
-      CX_STATIC_CHECK .
+    CLASS-METHODS build_xml
+      IMPORTING
+        !iv_user      TYPE sci_user
+        !iv_name      TYPE sci_chkv
+        !it_class     TYPE ty_class_range OPTIONAL
+      RETURNING
+        VALUE(rv_xml) TYPE string
+      RAISING
+        cx_static_check .
+    CLASS-METHODS create_from_xml
+      IMPORTING
+        !iv_xml  TYPE string
+        !iv_user TYPE sci_user
+        !iv_name TYPE sci_chkv
+        !iv_test TYPE abap_bool
+      RAISING
+        cx_static_check .
+  PROTECTED SECTION.
   PRIVATE SECTION.
     TYPES:
       BEGIN OF ty_parameter,
