@@ -18,7 +18,14 @@ CLASS zcl_updownci DEFINITION
         include_source  TYPE abap_bool,
         call_me         TYPE abap_bool,
       END OF ty_wdy_ci_test_conventions .
-
+    TYPES:
+      BEGIN OF ty_t_case ##needed, " used dynamically
+        none      TYPE sychar01,
+        lower     TYPE sychar01,
+        upper     TYPE sychar01,
+        key_lower TYPE sychar01,
+        key_upper TYPE sychar01,
+      END OF ty_t_case.
     CLASS-METHODS build_xml
       IMPORTING
         !iv_user      TYPE sci_user
@@ -104,7 +111,6 @@ CLASS zcl_updownci DEFINITION
         IMPORTING it_types       TYPE ty_type_tt
         RETURNING VALUE(rr_data) TYPE REF TO data
         RAISING   zcx_updownci_exception.
-
 ENDCLASS.
 
 
@@ -350,6 +356,10 @@ CLASS ZCL_UPDOWNCI IMPLEMENTATION.
         lv_type = 'ABAP_BOOL'.
       ENDIF.
 
+      IF lv_name = 'CASE'.
+* special handling for CL_CI_TEST_PRETTY_PRINT
+        lv_type = 'TY_T_CASE'.
+      ENDIF.
 
       APPEND INITIAL LINE TO rt_types ASSIGNING <ls_type>.
       <ls_type>-parameter = <ls_parameter>-name.
