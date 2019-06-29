@@ -9,6 +9,7 @@
     <item>/LICENSE</item>
     <item>/README.md</item>
     <item>/example.xml</item>
+    <item>/abaplint.json</item>
    </IGNORE>
   </DATA>
  </asx:values>
