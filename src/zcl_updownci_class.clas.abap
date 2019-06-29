@@ -5,13 +5,6 @@ CLASS zcl_updownci_class DEFINITION
 
   PUBLIC SECTION.
 
-    TYPES: BEGIN OF ty_redirect,
-             from TYPE seoclsname,
-             to   TYPE seoclsname,
-           END OF ty_redirect.
-
-    CLASS-DATA: mt_redirect TYPE STANDARD TABLE OF ty_redirect WITH DEFAULT KEY.
-
     CLASS-METHODS add_redirect
       IMPORTING
         !iv_from TYPE seoclsname
@@ -30,6 +23,16 @@ CLASS zcl_updownci_class DEFINITION
         VALUE(rt_attributes) TYPE seo_attributes
       RAISING
         cx_static_check .
+  PROTECTED SECTION.
+
+    TYPES: BEGIN OF ty_redirect,
+             from TYPE seoclsname,
+             to   TYPE seoclsname,
+           END OF ty_redirect.
+
+    CLASS-DATA: gt_redirect TYPE STANDARD TABLE OF ty_redirect WITH DEFAULT KEY.
+
+  PRIVATE SECTION.
 ENDCLASS.
 
 
@@ -39,9 +42,9 @@ CLASS ZCL_UPDOWNCI_CLASS IMPLEMENTATION.
 
   METHOD add_redirect.
 
-    FIELD-SYMBOLS: <ls_redirect> LIKE LINE OF mt_redirect.
+    FIELD-SYMBOLS: <ls_redirect> LIKE LINE OF gt_redirect.
 
-    APPEND INITIAL LINE TO mt_redirect ASSIGNING <ls_redirect>.
+    APPEND INITIAL LINE TO gt_redirect ASSIGNING <ls_redirect>.
     <ls_redirect>-from = iv_from.
     <ls_redirect>-to   = iv_to.
 
@@ -52,11 +55,11 @@ CLASS ZCL_UPDOWNCI_CLASS IMPLEMENTATION.
 
     DATA: lt_attributes TYPE seo_attributes,
           lv_super      TYPE seoclsname,
-          ls_redirect   LIKE LINE OF mt_redirect,
+          ls_redirect   LIKE LINE OF gt_redirect,
           lo_class      TYPE REF TO cl_oo_class.
 
 
-    READ TABLE mt_redirect INTO ls_redirect WITH KEY from = iv_class.
+    READ TABLE gt_redirect INTO ls_redirect WITH KEY from = iv_class.
     IF sy-subrc = 0.
       lo_class ?= cl_oo_class=>get_instance( ls_redirect-to ).
     ELSE.
@@ -78,11 +81,11 @@ CLASS ZCL_UPDOWNCI_CLASS IMPLEMENTATION.
 
     DATA: lo_class    TYPE REF TO cl_oo_class,
           lv_super    TYPE seoclsname,
-          ls_redirect LIKE LINE OF mt_redirect,
+          ls_redirect LIKE LINE OF gt_redirect,
           ls_mtdkey   TYPE seocpdkey.
 
 
-    READ TABLE mt_redirect INTO ls_redirect WITH KEY from = iv_class.
+    READ TABLE gt_redirect INTO ls_redirect WITH KEY from = iv_class.
     IF sy-subrc = 0.
       ls_mtdkey-clsname = ls_redirect-to.
     ELSE.
