@@ -24,7 +24,7 @@
       "exclude": []
     },
     "check_variables": {
-      "enabled": true,
+      "enabled": false,
       "exclude": []
     },
     "class_attribute_names": {
