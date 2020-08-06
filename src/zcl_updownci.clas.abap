@@ -45,72 +45,90 @@ CLASS zcl_updownci DEFINITION
         cx_static_check .
   PROTECTED SECTION.
   PRIVATE SECTION.
+
     TYPES:
       BEGIN OF ty_parameter,
         name  TYPE string,
         value TYPE string,
-      END OF ty_parameter.
-
-    TYPES: ty_parameter_tt TYPE STANDARD TABLE OF ty_parameter WITH DEFAULT KEY.
-
+      END OF ty_parameter .
+    TYPES:
+      ty_parameter_tt TYPE STANDARD TABLE OF ty_parameter WITH DEFAULT KEY .
     TYPES:
       BEGIN OF ty_type,
         parameter TYPE string,
         name      TYPE string,
         type      TYPE string,
         field     TYPE string,
-      END OF ty_type.
+      END OF ty_type .
+    TYPES:
+      ty_type_tt TYPE STANDARD TABLE OF ty_type WITH DEFAULT KEY .
 
-    TYPES: ty_type_tt TYPE STANDARD TABLE OF ty_type WITH DEFAULT KEY.
+    CLASS-DATA go_xml TYPE REF TO zcl_updownci_xml .
 
-    CLASS-DATA:
-      go_xml TYPE REF TO zcl_updownci_xml.
-
-    CLASS-METHODS:
-      download_attributes
-        IMPORTING iv_class      TYPE seoclsname
-                  iv_attributes TYPE xstring
-                  iv_version    TYPE sci_tstval-version
-        RAISING   cx_static_check,
-      build_memory
-        IMPORTING iv_class  TYPE seoclsname
-        EXPORTING er_data   TYPE REF TO data
-                  et_memory TYPE ty_parameter_tt
-        RAISING   cx_static_check,
-      upload_attributes
-        IMPORTING
-                  iv_testname   TYPE sci_tstval-testname
-                  ii_attributes TYPE REF TO if_ixml_node
-        CHANGING
-                  cv_attributes TYPE xstring
-        RAISING   cx_static_check,
-      update_variant
-        IMPORTING
-                  iv_testname   TYPE sci_tstval-testname
-                  ii_attributes TYPE REF TO if_ixml_node
-        CHANGING
-                  ct_variant    TYPE sci_tstvar
-        RAISING   cx_static_check,
-      read_source
-        IMPORTING iv_include       TYPE program
-        RETURNING VALUE(rt_source) TYPE abaptxt255_tab,
-      parse
-        IMPORTING it_source            TYPE abaptxt255_tab
-        RETURNING VALUE(rt_parameters) TYPE ty_parameter_tt
-        RAISING   zcx_updownci_exception,
-      find_types
-        IMPORTING iv_class        TYPE seoclsname
-                  it_parameters   TYPE ty_parameter_tt
-        RETURNING VALUE(rt_types) TYPE ty_type_tt
-        RAISING   cx_static_check,
-      show_progress
-        IMPORTING iv_current TYPE i
-                  iv_total   TYPE i
-                  iv_class   TYPE seoclsname,
-      create_structure
-        IMPORTING it_types       TYPE ty_type_tt
-        RETURNING VALUE(rr_data) TYPE REF TO data
-        RAISING   zcx_updownci_exception.
+    CLASS-METHODS download_attributes
+      IMPORTING
+        !iv_class      TYPE seoclsname
+        !iv_attributes TYPE xstring
+        !iv_version    TYPE sci_tstval-version
+      RAISING
+        cx_static_check .
+    CLASS-METHODS build_memory
+      IMPORTING
+        !iv_class  TYPE seoclsname
+      EXPORTING
+        !er_data   TYPE REF TO data
+        !et_memory TYPE ty_parameter_tt
+      RAISING
+        cx_static_check .
+    CLASS-METHODS upload_attributes
+      IMPORTING
+        !iv_testname   TYPE sci_tstval-testname
+        !ii_attributes TYPE REF TO if_ixml_node
+      CHANGING
+        !cv_attributes TYPE xstring
+      RAISING
+        cx_static_check .
+    CLASS-METHODS update_variant
+      IMPORTING
+        !iv_testname   TYPE sci_tstval-testname
+        !ii_attributes TYPE REF TO if_ixml_node
+      CHANGING
+        !ct_variant    TYPE sci_tstvar
+      RAISING
+        cx_static_check .
+    CLASS-METHODS read_source
+      IMPORTING
+        !iv_include      TYPE program
+      RETURNING
+        VALUE(rt_source) TYPE abaptxt255_tab .
+    CLASS-METHODS parse
+      IMPORTING
+        !it_source           TYPE abaptxt255_tab
+      RETURNING
+        VALUE(rt_parameters) TYPE ty_parameter_tt
+      RAISING
+        zcx_updownci_exception .
+    CLASS-METHODS find_types
+      IMPORTING
+        !iv_class       TYPE seoclsname
+        !it_parameters  TYPE ty_parameter_tt
+      RETURNING
+        VALUE(rt_types) TYPE ty_type_tt
+      RAISING
+        cx_static_check .
+    CLASS-METHODS show_progress
+      IMPORTING
+        !iv_current TYPE i
+        !iv_total   TYPE i
+        !iv_class   TYPE seoclsname .
+    CLASS-METHODS create_structure
+      IMPORTING
+        !iv_class      TYPE seoclsname
+        !it_types      TYPE ty_type_tt
+      RETURNING
+        VALUE(rr_data) TYPE REF TO data
+      RAISING
+        zcx_updownci_exception .
 ENDCLASS.
 
 
@@ -136,7 +154,8 @@ CLASS ZCL_UPDOWNCI IMPLEMENTATION.
     lt_types      = find_types( iv_class      = iv_class
                                 it_parameters = lt_parameters ).
 
-    er_data = create_structure( lt_types ).
+    er_data = create_structure( iv_class = iv_class
+                                it_types = lt_types ).
 
     LOOP AT lt_types ASSIGNING <ls_type>.
       APPEND INITIAL LINE TO et_memory ASSIGNING <ls_memory>.
@@ -254,6 +273,7 @@ CLASS ZCL_UPDOWNCI IMPLEMENTATION.
   METHOD create_structure.
 
     DATA: lt_components  TYPE cl_abap_structdescr=>component_table,
+          lo_type        TYPE REF TO cl_abap_typedescr,
           lo_structdescr TYPE REF TO cl_abap_structdescr.
 
     FIELD-SYMBOLS: <ls_component> LIKE LINE OF lt_components,
@@ -267,7 +287,20 @@ CLASS ZCL_UPDOWNCI IMPLEMENTATION.
     LOOP AT it_types ASSIGNING <ls_type>.
       APPEND INITIAL LINE TO lt_components ASSIGNING <ls_component>.
       <ls_component>-name = <ls_type>-name.
-      <ls_component>-type ?= cl_abap_typedescr=>describe_by_name( <ls_type>-type ).
+
+      cl_abap_typedescr=>describe_by_name(
+        EXPORTING
+          p_name         = <ls_type>-type
+        RECEIVING
+          p_descr_ref    = lo_type
+        EXCEPTIONS
+          type_not_found = 1
+          OTHERS         = 2 ).
+      <ls_component>-type ?= lo_type.
+      IF sy-subrc <> 0.
+        <ls_component>-type ?= cl_abap_typedescr=>describe_by_name( |{ iv_class }=>{ <ls_type>-type }| ).
+      ENDIF.
+
     ENDLOOP.
 
     SORT lt_components BY name ASCENDING.
