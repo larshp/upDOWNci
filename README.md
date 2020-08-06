@@ -1,5 +1,3 @@
-[![abaplint](https://abaplint.org/badges/larshp/upDOWNci)](https://abaplint.org/project/larshp/upDOWNci)
-
 # upDOWNci
 Upload and download [SAP Code Inspector](http://wiki.scn.sap.com/wiki/display/ABAP/Code+Inspector) variants in XML format
 
