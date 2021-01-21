@@ -1,4 +1,4 @@
-CLASS zcl_updownci definition
+CLASS zcl_updownci DEFINITION
   PUBLIC
   CREATE PUBLIC .
 
@@ -133,7 +133,7 @@ ENDCLASS.
 
 
 
-CLASS zcl_updownci IMPLEMENTATION.
+CLASS ZCL_UPDOWNCI IMPLEMENTATION.
 
 
   METHOD build_memory.
