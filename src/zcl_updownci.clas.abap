@@ -394,6 +394,11 @@ CLASS ZCL_UPDOWNCI IMPLEMENTATION.
         lv_type = 'TY_T_CASE'.
       ENDIF.
 
+      IF iv_class(8) = 'Y_CHECK_'.
+* Special handling for code pal for ABAP - https://github.com/SAP/code-pal-for-abap
+        lv_type = 'Y_IF_CLEAN_CODE_MANAGER=>CHECK_CONFIGURATION'.
+      ENDIF.
+
       APPEND INITIAL LINE TO rt_types ASSIGNING <ls_type>.
       <ls_type>-parameter = <ls_parameter>-name.
       <ls_type>-name = lv_name.
