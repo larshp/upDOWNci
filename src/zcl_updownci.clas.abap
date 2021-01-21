@@ -1,4 +1,4 @@
-CLASS zcl_updownci DEFINITION
+CLASS zcl_updownci definition
   PUBLIC
   CREATE PUBLIC .
 
