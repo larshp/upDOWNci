@@ -77,6 +77,7 @@ CLASS lcl_app IMPLEMENTATION.
 
 
     lv_default = p_name.
+    REPLACE ALL OCCURRENCES OF '/' IN lv_default WITH 'x'.
 
     TRY.
         IF p_down = abap_true.
