@@ -13,6 +13,8 @@ CLASS zcl_updownci_xml DEFINITION
                   iv_testname TYPE sci_tstval-testname
                   iv_version  TYPE sci_tstval-version
         RAISING   zcx_updownci_exception,
+      write_remote_variant_name
+        IMPORTING iv_remote_variant_name TYPE sci_chkv,
       read_variant
         EXPORTING ei_attributes TYPE REF TO if_ixml_node
                   ev_testname   TYPE sci_tstval-testname
@@ -22,10 +24,13 @@ CLASS zcl_updownci_xml DEFINITION
         IMPORTING ii_attributes TYPE REF TO if_ixml_node
         CHANGING  cg_data       TYPE data
         RAISING   zcx_updownci_exception,
+      read_remote_variant_name
+        RETURNING VALUE(rv_remote_variant_name) TYPE sci_chkv,
       render
         RETURNING VALUE(rv_xml) TYPE string.
 
   PRIVATE SECTION.
+    CONSTANTS gc_xml_remote_variant_name TYPE string VALUE 'REMOTE_VARIANT_NAME' ##NO_TEXT.
 
     DATA:
       mi_ixml     TYPE REF TO if_ixml,
@@ -67,7 +72,7 @@ ENDCLASS.
 
 
 
-CLASS ZCL_UPDOWNCI_XML IMPLEMENTATION.
+CLASS zcl_updownci_xml IMPLEMENTATION.
 
 
   METHOD constructor.
@@ -439,4 +444,20 @@ CLASS ZCL_UPDOWNCI_XML IMPLEMENTATION.
     ENDIF.
 
   ENDMETHOD.
+
+  METHOD write_remote_variant_name.
+    DATA li_root_as_element TYPE REF TO if_ixml_element.
+    li_root_as_element ?= mi_root.
+
+    li_root_as_element->set_attribute_ns( name  = gc_xml_remote_variant_name
+                                          value = CONV #( iv_remote_variant_name ) ).
+  ENDMETHOD.
+
+  METHOD read_remote_variant_name.
+    DATA li_root_as_element TYPE REF TO if_ixml_element.
+    li_root_as_element ?= mi_root.
+
+    rv_remote_variant_name = li_root_as_element->get_attribute_ns( name = gc_xml_remote_variant_name ).
+  ENDMETHOD.
+
 ENDCLASS.
