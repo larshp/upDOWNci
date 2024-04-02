@@ -34,7 +34,7 @@ CLASS zcl_updownci_xml DEFINITION
 
     DATA:
       mi_ixml     TYPE REF TO if_ixml,
-      mi_root     TYPE REF TO if_ixml_node,
+      mi_root     TYPE REF TO if_ixml_element,
       mi_iterator TYPE REF TO if_ixml_node_iterator,
       mi_xml_doc  TYPE REF TO if_ixml_document.
 
@@ -77,9 +77,10 @@ CLASS zcl_updownci_xml IMPLEMENTATION.
 
   METHOD constructor.
 
-    DATA: li_stream_factory TYPE REF TO if_ixml_stream_factory,
-          li_istream        TYPE REF TO if_ixml_istream,
-          li_parser         TYPE REF TO if_ixml_parser.
+    DATA: li_stream_factory  TYPE REF TO if_ixml_stream_factory,
+          li_istream         TYPE REF TO if_ixml_istream,
+          li_parser          TYPE REF TO if_ixml_parser,
+          lo_move_cast_error TYPE REF TO cx_sy_move_cast_error.
 
 
     mi_ixml = cl_ixml=>create( ).
@@ -98,7 +99,14 @@ CLASS zcl_updownci_xml IMPLEMENTATION.
 
       li_istream->close( ).
 
-      mi_root = mi_xml_doc->get_first_child( ).
+      TRY.
+          mi_root ?= mi_xml_doc->get_first_child( ).
+        CATCH cx_sy_move_cast_error INTO lo_move_cast_error.
+          RAISE EXCEPTION TYPE zcx_updownci_exception
+            EXPORTING
+              iv_text  = 'First child of XML is not an XML element'
+              previous = lo_move_cast_error.
+      ENDTRY.
       mi_iterator = mi_root->get_children( )->create_iterator( ).
     ELSE.
       mi_root = mi_xml_doc->create_element( 'VARIANT' ).
@@ -446,18 +454,12 @@ CLASS zcl_updownci_xml IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD write_remote_variant_name.
-    DATA li_root_as_element TYPE REF TO if_ixml_element.
-    li_root_as_element ?= mi_root.
-
-    li_root_as_element->set_attribute_ns( name  = gc_xml_remote_variant_name
-                                          value = CONV #( iv_remote_variant_name ) ).
+    mi_root->set_attribute_ns( name  = gc_xml_remote_variant_name
+                               value = CONV #( iv_remote_variant_name ) ).
   ENDMETHOD.
 
   METHOD read_remote_variant_name.
-    DATA li_root_as_element TYPE REF TO if_ixml_element.
-    li_root_as_element ?= mi_root.
-
-    rv_remote_variant_name = li_root_as_element->get_attribute_ns( name = gc_xml_remote_variant_name ).
+    rv_remote_variant_name = mi_root->get_attribute_ns( name = gc_xml_remote_variant_name ).
   ENDMETHOD.
 
 ENDCLASS.
