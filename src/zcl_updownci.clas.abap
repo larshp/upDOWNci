@@ -34,7 +34,7 @@ CLASS zcl_updownci DEFINITION
       RETURNING
         VALUE(rv_xml) TYPE string
       RAISING
-        cx_static_check .
+        zcx_updownci_exception.
     CLASS-METHODS create_from_xml
       IMPORTING
         !iv_xml  TYPE string
@@ -42,7 +42,7 @@ CLASS zcl_updownci DEFINITION
         !iv_name TYPE sci_chkv
         !iv_test TYPE abap_bool
       RAISING
-        cx_static_check .
+        zcx_updownci_exception.
   PROTECTED SECTION.
   PRIVATE SECTION.
 
@@ -71,7 +71,7 @@ CLASS zcl_updownci DEFINITION
         !iv_attributes TYPE xstring
         !iv_version    TYPE sci_tstval-version
       RAISING
-        cx_static_check .
+        zcx_updownci_exception.
     CLASS-METHODS build_memory
       IMPORTING
         !iv_class  TYPE seoclsname
@@ -79,7 +79,7 @@ CLASS zcl_updownci DEFINITION
         !er_data   TYPE REF TO data
         !et_memory TYPE ty_parameter_tt
       RAISING
-        cx_static_check .
+        zcx_updownci_exception.
     CLASS-METHODS upload_attributes
       IMPORTING
         !iv_testname   TYPE sci_tstval-testname
@@ -87,7 +87,7 @@ CLASS zcl_updownci DEFINITION
       CHANGING
         !cv_attributes TYPE xstring
       RAISING
-        cx_static_check .
+        zcx_updownci_exception.
     CLASS-METHODS update_variant
       IMPORTING
         !iv_testname   TYPE sci_tstval-testname
@@ -95,7 +95,8 @@ CLASS zcl_updownci DEFINITION
       CHANGING
         !ct_variant    TYPE sci_tstvar
       RAISING
-        cx_static_check .
+        zcx_updownci_exception
+        zcx_updownci_test_not_found.
     CLASS-METHODS read_source
       IMPORTING
         !iv_include      TYPE program
@@ -115,7 +116,7 @@ CLASS zcl_updownci DEFINITION
       RETURNING
         VALUE(rt_types) TYPE ty_type_tt
       RAISING
-        cx_static_check .
+        zcx_updownci_exception .
     CLASS-METHODS show_progress
       IMPORTING
         !iv_current TYPE i

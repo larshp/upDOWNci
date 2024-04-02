@@ -15,14 +15,14 @@ CLASS zcl_updownci_class DEFINITION
       RETURNING
         VALUE(rv_include) TYPE program
       RAISING
-        cx_static_check .
+        zcx_updownci_exception .
     CLASS-METHODS attributes
       IMPORTING
         !iv_class            TYPE seoclsname
       RETURNING
         VALUE(rt_attributes) TYPE seo_attributes
       RAISING
-        cx_static_check .
+        zcx_updownci_exception.
   PROTECTED SECTION.
 
     TYPES: BEGIN OF ty_redirect,
@@ -37,7 +37,7 @@ ENDCLASS.
 
 
 
-CLASS ZCL_UPDOWNCI_CLASS IMPLEMENTATION.
+CLASS zcl_updownci_class IMPLEMENTATION.
 
 
   METHOD add_redirect.
@@ -53,18 +53,27 @@ CLASS ZCL_UPDOWNCI_CLASS IMPLEMENTATION.
 
   METHOD attributes.
 
-    DATA: lt_attributes TYPE seo_attributes,
-          lv_super      TYPE seoclsname,
-          ls_redirect   LIKE LINE OF gt_redirect,
-          lo_class      TYPE REF TO cl_oo_class.
+    DATA: lt_attributes         TYPE seo_attributes,
+          lv_super              TYPE seoclsname,
+          ls_redirect           LIKE LINE OF gt_redirect,
+          lo_class              TYPE REF TO cl_oo_class,
+          lo_class_not_existent TYPE REF TO cx_class_not_existent.
 
 
     READ TABLE gt_redirect INTO ls_redirect WITH KEY from = iv_class.
-    IF sy-subrc = 0.
-      lo_class ?= cl_oo_class=>get_instance( ls_redirect-to ).
-    ELSE.
-      lo_class ?= cl_oo_class=>get_instance( iv_class ).
-    ENDIF.
+
+    TRY.
+        IF ls_redirect IS NOT INITIAL.
+          lo_class ?= cl_oo_class=>get_instance( ls_redirect-to ).
+        ELSE.
+          lo_class ?= cl_oo_class=>get_instance( iv_class ).
+        ENDIF.
+      CATCH cx_class_not_existent INTO lo_class_not_existent.
+        RAISE EXCEPTION TYPE zcx_updownci_exception
+          EXPORTING
+            iv_text  = 'Class does not exist'
+            previous = lo_class_not_existent.
+    ENDTRY.
 
     rt_attributes = lo_class->get_attributes( ).
 
@@ -79,10 +88,11 @@ CLASS ZCL_UPDOWNCI_CLASS IMPLEMENTATION.
 
   METHOD find_include.
 
-    DATA: lo_class    TYPE REF TO cl_oo_class,
-          lv_super    TYPE seoclsname,
-          ls_redirect LIKE LINE OF gt_redirect,
-          ls_mtdkey   TYPE seocpdkey.
+    DATA: lo_class              TYPE REF TO cl_oo_class,
+          lv_super              TYPE seoclsname,
+          ls_redirect           LIKE LINE OF gt_redirect,
+          ls_mtdkey             TYPE seocpdkey,
+          lo_class_not_existent TYPE REF TO cx_class_not_existent.
 
 
     READ TABLE gt_redirect INTO ls_redirect WITH KEY from = iv_class.
@@ -103,12 +113,18 @@ CLASS ZCL_UPDOWNCI_CLASS IMPLEMENTATION.
         method_not_existing = 2
         OTHERS              = 3 ).
     IF sy-subrc = 2.
-      lo_class ?= cl_oo_class=>get_instance( iv_class ).
+      TRY.
+          lo_class ?= cl_oo_class=>get_instance( iv_class ).
+        CATCH cx_class_not_existent INTO lo_class_not_existent.
+          RAISE EXCEPTION TYPE zcx_updownci_exception
+            EXPORTING
+              iv_text  = 'Class does not exist'
+              previous = lo_class_not_existent.
+      ENDTRY.
       lv_super = lo_class->get_superclass( ).
       rv_include = find_include( lv_super ).
     ELSEIF sy-subrc <> 0.
       RAISE EXCEPTION TYPE zcx_updownci_exception EXPORTING iv_text = 'error while finding method include'.
     ENDIF.
-
   ENDMETHOD.
 ENDCLASS.
