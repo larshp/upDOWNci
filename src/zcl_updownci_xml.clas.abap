@@ -454,8 +454,11 @@ CLASS zcl_updownci_xml IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD write_remote_variant_name.
+    DATA lv_value type string.
+    lv_value = iv_remote_variant_name.
+
     mi_root->set_attribute_ns( name  = gc_xml_remote_variant_name
-                               value = CONV #( iv_remote_variant_name ) ).
+                               value = lv_value ).
   ENDMETHOD.
 
   METHOD read_remote_variant_name.
