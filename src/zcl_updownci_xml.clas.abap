@@ -13,6 +13,8 @@ CLASS zcl_updownci_xml DEFINITION
                   iv_testname TYPE sci_tstval-testname
                   iv_version  TYPE sci_tstval-version
         RAISING   zcx_updownci_exception,
+      write_remote_variant_name
+        IMPORTING iv_remote_variant_name TYPE sci_chkv,
       read_variant
         EXPORTING ei_attributes TYPE REF TO if_ixml_node
                   ev_testname   TYPE sci_tstval-testname
@@ -22,14 +24,17 @@ CLASS zcl_updownci_xml DEFINITION
         IMPORTING ii_attributes TYPE REF TO if_ixml_node
         CHANGING  cg_data       TYPE data
         RAISING   zcx_updownci_exception,
+      read_remote_variant_name
+        RETURNING VALUE(rv_remote_variant_name) TYPE sci_chkv,
       render
         RETURNING VALUE(rv_xml) TYPE string.
 
   PRIVATE SECTION.
+    CONSTANTS gc_xml_remote_variant_name TYPE string VALUE 'REMOTE_VARIANT_NAME' ##NO_TEXT.
 
     DATA:
       mi_ixml     TYPE REF TO if_ixml,
-      mi_root     TYPE REF TO if_ixml_node,
+      mi_root     TYPE REF TO if_ixml_element,
       mi_iterator TYPE REF TO if_ixml_node_iterator,
       mi_xml_doc  TYPE REF TO if_ixml_document.
 
@@ -67,14 +72,15 @@ ENDCLASS.
 
 
 
-CLASS ZCL_UPDOWNCI_XML IMPLEMENTATION.
+CLASS zcl_updownci_xml IMPLEMENTATION.
 
 
   METHOD constructor.
 
-    DATA: li_stream_factory TYPE REF TO if_ixml_stream_factory,
-          li_istream        TYPE REF TO if_ixml_istream,
-          li_parser         TYPE REF TO if_ixml_parser.
+    DATA: li_stream_factory  TYPE REF TO if_ixml_stream_factory,
+          li_istream         TYPE REF TO if_ixml_istream,
+          li_parser          TYPE REF TO if_ixml_parser,
+          lo_move_cast_error TYPE REF TO cx_sy_move_cast_error.
 
 
     mi_ixml = cl_ixml=>create( ).
@@ -93,7 +99,14 @@ CLASS ZCL_UPDOWNCI_XML IMPLEMENTATION.
 
       li_istream->close( ).
 
-      mi_root = mi_xml_doc->get_first_child( ).
+      TRY.
+          mi_root ?= mi_xml_doc->get_first_child( ).
+        CATCH cx_sy_move_cast_error INTO lo_move_cast_error.
+          RAISE EXCEPTION TYPE zcx_updownci_exception
+            EXPORTING
+              iv_text  = 'First child of XML is not an XML element'
+              previous = lo_move_cast_error.
+      ENDTRY.
       mi_iterator = mi_root->get_children( )->create_iterator( ).
     ELSE.
       mi_root = mi_xml_doc->create_element( 'VARIANT' ).
@@ -439,4 +452,17 @@ CLASS ZCL_UPDOWNCI_XML IMPLEMENTATION.
     ENDIF.
 
   ENDMETHOD.
+
+  METHOD write_remote_variant_name.
+    DATA lv_value TYPE string.
+    lv_value = iv_remote_variant_name.
+
+    mi_root->set_attribute_ns( name  = gc_xml_remote_variant_name
+                               value = lv_value ).
+  ENDMETHOD.
+
+  METHOD read_remote_variant_name.
+    rv_remote_variant_name = mi_root->get_attribute_ns( name = gc_xml_remote_variant_name ).
+  ENDMETHOD.
+
 ENDCLASS.

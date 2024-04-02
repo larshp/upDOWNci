@@ -133,7 +133,7 @@ ENDCLASS.
 
 
 
-CLASS ZCL_UPDOWNCI IMPLEMENTATION.
+CLASS zcl_updownci IMPLEMENTATION.
 
 
   METHOD build_memory.
@@ -186,6 +186,10 @@ CLASS ZCL_UPDOWNCI IMPLEMENTATION.
 
     CREATE OBJECT go_xml.
 
+    IF lo_variant->rem_var_name IS NOT INITIAL.
+      go_xml->write_remote_variant_name( lo_variant->rem_var_name ).
+    ENDIF.
+
     LOOP AT lo_variant->variant ASSIGNING <ls_variant>
         WHERE testname IN it_class.                     "#EC CI_HASHSEQ
 
@@ -207,11 +211,12 @@ CLASS ZCL_UPDOWNCI IMPLEMENTATION.
 
   METHOD create_from_xml.
 
-    DATA: lt_variant    TYPE sci_tstvar,
-          lo_variant    TYPE REF TO cl_ci_checkvariant,
-          li_attributes TYPE REF TO if_ixml_node,
-          lv_testname   TYPE sci_tstval-testname,
-          lv_version    TYPE sci_tstval-version.
+    DATA: lt_variant             TYPE sci_tstvar,
+          lo_variant             TYPE REF TO cl_ci_checkvariant,
+          li_attributes          TYPE REF TO if_ixml_node,
+          lv_testname            TYPE sci_tstval-testname,
+          lv_version             TYPE sci_tstval-version,
+          lv_remote_variant_name TYPE sci_chkv.
 
 
     lo_variant = zcl_updownci_variant=>read(
@@ -261,8 +266,11 @@ CLASS ZCL_UPDOWNCI IMPLEMENTATION.
           ev_version    = lv_version ).
     ENDWHILE.
 
+    lv_remote_variant_name = go_xml->read_remote_variant_name( ).
+
     IF iv_test = abap_false.
-      lo_variant->save( lt_variant ).
+      lo_variant->save( p_variant      = lt_variant
+                        p_rem_var_name = lv_remote_variant_name ).
     ELSE.
       lo_variant->leave_change( ).
     ENDIF.
