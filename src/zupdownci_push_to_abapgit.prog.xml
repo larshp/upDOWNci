@@ -5,6 +5,7 @@
    <PROGDIR>
     <NAME>ZUPDOWNCI_PUSH_TO_ABAPGIT</NAME>
     <DBAPL>S</DBAPL>
+    <DBNA>D$</DBNA>
     <SUBC>1</SUBC>
     <FIXPT>X</FIXPT>
     <LDBNAME>D$S</LDBNAME>
@@ -13,7 +14,19 @@
    <TPOOL>
     <item>
      <ID>R</ID>
-     <ENTRY>Push changes to abapGit</ENTRY>
+     <ENTRY>Push new, changed and deleted variants to abapGit</ENTRY>
+     <LENGTH>49</LENGTH>
+    </item>
+    <item>
+     <ID>S</ID>
+     <KEY>P_COMM</KEY>
+     <ENTRY>Commit summary</ENTRY>
+     <LENGTH>22</LENGTH>
+    </item>
+    <item>
+     <ID>S</ID>
+     <KEY>P_REPO</KEY>
+     <ENTRY>Repository name</ENTRY>
      <LENGTH>23</LENGTH>
     </item>
    </TPOOL>

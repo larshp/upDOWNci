@@ -6,10 +6,8 @@ INCLUDE zabapgit_password_dialog.
 " Required for password dialog:
 TABLES sscrfields.
 
-" TODO: Add UI texts
-PARAMETERS p_repo TYPE string LOWER CASE.
-PARAMETERS p_comm TYPE string DEFAULT `Update variants` LOWER CASE.
-
+PARAMETERS p_repo TYPE string LOWER CASE OBLIGATORY.
+PARAMETERS p_comm TYPE string DEFAULT `Update variants` LOWER CASE OBLIGATORY.
 
 CLASS lcl_program DEFINITION.
 
