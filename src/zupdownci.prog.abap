@@ -86,9 +86,10 @@ CLASS lcl_app IMPLEMENTATION.
             iv_user  = p_user
             it_class = s_class[] ).
 
-          zcl_updownci_file=>download(
-            iv_default = lv_default
-            iv_xml     = lv_xml ).
+          zcl_updownci_file=>download_string(
+            iv_default_file_name = lv_default
+            iv_default_extension = 'xml'
+            iv_content           = lv_xml ).
         ELSE.
           lv_xml = zcl_updownci_file=>upload( ).
           IF lv_xml IS INITIAL.
