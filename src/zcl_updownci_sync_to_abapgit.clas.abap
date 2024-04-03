@@ -9,7 +9,7 @@ CLASS zcl_updownci_sync_to_abapgit DEFINITION
              ciuser     TYPE scichkv_hd-ciuser,
              checkvname TYPE scichkv_hd-checkvname,
            END OF gy_check_variant.
-    TYPES gy_check_variants TYPE TABLE OF gy_check_variant WITH EMPTY KEY.
+    TYPES gy_check_variants TYPE TABLE OF gy_check_variant WITH KEY ciuser checkvname.
 
     METHODS constructor
       IMPORTING
@@ -68,10 +68,11 @@ CLASS zcl_updownci_sync_to_abapgit IMPLEMENTATION.
     DATA lt_files TYPE zif_abapgit_git_definitions=>ty_files_tt.
     DATA ls_file TYPE zif_abapgit_git_definitions=>ty_file.
     DATA lo_build_xml_error TYPE REF TO zcx_updownci_exception.
+    FIELD-SYMBOLS <ls_check_variant> TYPE zcl_updownci_sync_to_abapgit=>gy_check_variant.
 
     lt_files = mo_repository->get_files_remote( ).
 
-    LOOP AT it_check_variants ASSIGNING FIELD-SYMBOL(<ls_check_variant>).
+    LOOP AT it_check_variants ASSIGNING <ls_check_variant>.
       TRY.
           ls_file = build_xml_file( <ls_check_variant> ).
         CATCH zcx_updownci_exception INTO lo_build_xml_error.
@@ -155,8 +156,6 @@ CLASS zcl_updownci_sync_to_abapgit IMPLEMENTATION.
 
     lv_extension_length = strlen( gc_xml_file_extension ).
     lv_variant_name_length = strlen( is_file-filename ) - lv_extension_length.
-
-    rs_check_variant_search = VALUE gy_check_variant( ).
 
     rs_check_variant_search-ciuser     = substring_before( val = substring_after( val = is_file-path
                                                                                   sub = mv_path )
