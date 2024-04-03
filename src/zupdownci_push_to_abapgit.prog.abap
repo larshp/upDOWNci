@@ -6,6 +6,7 @@ INCLUDE zabapgit_password_dialog.
 " Required for password dialog:
 TABLES sscrfields.
 
+" TODO: Add UI texts
 PARAMETERS p_repo TYPE string LOWER CASE.
 PARAMETERS p_comm TYPE string DEFAULT `Update variants` LOWER CASE.
 
@@ -13,6 +14,10 @@ PARAMETERS p_comm TYPE string DEFAULT `Update variants` LOWER CASE.
 CLASS lcl_program DEFINITION.
 
   PUBLIC SECTION.
+    CLASS-METHODS new
+      RETURNING
+        VALUE(ro_instance) TYPE REF TO lcl_program.
+
     METHODS run.
 
   PRIVATE SECTION.
@@ -34,31 +39,42 @@ ENDCLASS.
 
 
 CLASS lcl_program IMPLEMENTATION.
+  METHOD new.
+    CREATE OBJECT ro_instance.
+  ENDMETHOD.
+
   METHOD run.
     DATA li_abapgit_log TYPE REF TO zif_abapgit_log.
-    li_abapgit_log = NEW zcl_abapgit_log( ).
+    DATA lo_stage TYPE REF TO zcl_abapgit_stage.
+    DATA lo_repository TYPE REF TO zcl_abapgit_repo_online.
+    DATA lt_check_variants TYPE zcl_updownci_sync_to_abapgit=>gy_check_variants.
+    DATA lo_abapgit_sync TYPE REF TO zcl_updownci_sync_to_abapgit.
+    DATA ls_comment TYPE zif_abapgit_git_definitions=>ty_comment.
+    DATA lo_abapgit_exception TYPE REF TO zcx_abapgit_exception.
+    DATA lo_updownci_exception TYPE REF TO zcx_updownci_exception.
+
+    CREATE OBJECT li_abapgit_log TYPE zcl_abapgit_log.
+    CREATE OBJECT lo_stage.
 
     TRY.
         zcl_abapgit_background=>enqueue( ).
 
-        DATA(lo_repository) = get_repository( ).
+        lo_repository = get_repository( ).
 
-        DATA(lt_check_variants) = read_check_variants_from_db( ).
+        lt_check_variants = read_check_variants_from_db( ).
 
-        DATA(lo_abapgit_sync) = NEW zcl_updownci_sync_to_abapgit( io_repository  = lo_repository
-                                                                  iv_folder_name = `variant`
-                                                                  ii_abapgit_log = li_abapgit_log ).
-
-        DATA(lo_stage) = NEW zcl_abapgit_stage( ).
+        lo_abapgit_sync = NEW zcl_updownci_sync_to_abapgit( io_repository  = lo_repository
+                                                            iv_folder_name = `variant`
+                                                            ii_abapgit_log = li_abapgit_log ).
 
         lo_abapgit_sync->stage_new_or_changed_variants( it_check_variants = lt_check_variants
-                                                      io_stage          = lo_stage ).
+                                                        io_stage          = lo_stage ).
 
         lo_abapgit_sync->stage_deletion_of_variants( it_check_variants = lt_check_variants
-                                                      io_stage          = lo_stage ).
+                                                     io_stage          = lo_stage ).
 
         IF lo_stage->count( ) > 0.
-          DATA(ls_comment) = build_comment( ).
+          ls_comment = build_comment( ).
 
           lo_repository->push( is_comment = ls_comment
                                io_stage   = lo_stage ).
@@ -70,10 +86,10 @@ CLASS lcl_program IMPLEMENTATION.
           li_abapgit_log->add_info( `Nothing to commit` ).
         ENDIF.
 
-      CATCH zcx_abapgit_exception INTO DATA(lo_abapgit_exception).
+      CATCH zcx_abapgit_exception INTO lo_abapgit_exception.
         li_abapgit_log->add_exception( lo_abapgit_exception ).
 
-      CATCH zcx_updownci_exception INTO DATA(lo_updownci_exception).
+      CATCH zcx_updownci_exception INTO lo_updownci_exception.
         li_abapgit_log->add_error( lo_updownci_exception->iv_text ).
     ENDTRY.
 
@@ -90,9 +106,11 @@ CLASS lcl_program IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD get_repository.
-    DATA(lt_repositories) = zcl_abapgit_repo_srv=>get_instance( )->list( ).
+    DATA lt_repositories TYPE zif_abapgit_repo_srv=>ty_repo_list.
+    DATA lo_repository TYPE REF TO zif_abapgit_repo.
+    lt_repositories = zcl_abapgit_repo_srv=>get_instance( )->list( ).
 
-    LOOP AT lt_repositories INTO DATA(lo_repository).
+    LOOP AT lt_repositories INTO lo_repository.
       IF lo_repository->is_offline( ).
         CONTINUE.
       ENDIF.
@@ -109,11 +127,12 @@ CLASS lcl_program IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD build_comment.
-    DATA(lo_user_record) = zcl_abapgit_user_record=>get_instance( sy-uname ).
+    DATA lo_user_record TYPE REF TO zcl_abapgit_user_record.
+    lo_user_record = zcl_abapgit_user_record=>get_instance( sy-uname ).
 
-    rs_comment = VALUE #( comment   = p_comm
-                          committer = VALUE #( name  = lo_user_record->get_name( )
-                                               email = lo_user_record->get_email( ) ) ).
+    rs_comment-comment = p_comm.
+    rs_comment-committer-name  = lo_user_record->get_name( ).
+    rs_comment-committer-email = lo_user_record->get_email( ).
   ENDMETHOD.
 ENDCLASS.
 
@@ -131,4 +150,4 @@ AT SELECTION-SCREEN.
   ENDIF.
 
 START-OF-SELECTION.
-  NEW lcl_program( )->run( ).
+  lcl_program=>new( )->run( ).
