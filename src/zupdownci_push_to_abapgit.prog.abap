@@ -63,9 +63,11 @@ CLASS lcl_program IMPLEMENTATION.
 
         lt_check_variants = read_check_variants_from_db( ).
 
-        lo_abapgit_sync = NEW zcl_updownci_sync_to_abapgit( io_repository  = lo_repository
-                                                            iv_folder_name = `variant`
-                                                            ii_abapgit_log = li_abapgit_log ).
+        CREATE OBJECT lo_abapgit_sync
+          EXPORTING
+            io_repository  = lo_repository
+            iv_folder_name = `variant`
+            ii_abapgit_log = li_abapgit_log.
 
         lo_abapgit_sync->stage_new_or_changed_variants( it_check_variants = lt_check_variants
                                                         io_stage          = lo_stage ).
@@ -99,10 +101,9 @@ CLASS lcl_program IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD read_check_variants_from_db.
-    SELECT
+    SELECT ciuser checkvname
       FROM scichkv_hd
-      FIELDS ciuser, checkvname
-      INTO TABLE @rt_check_variants.
+      INTO TABLE rt_check_variants.
   ENDMETHOD.
 
   METHOD get_repository.
@@ -111,7 +112,7 @@ CLASS lcl_program IMPLEMENTATION.
     lt_repositories = zcl_abapgit_repo_srv=>get_instance( )->list( ).
 
     LOOP AT lt_repositories INTO lo_repository.
-      IF lo_repository->is_offline( ).
+      IF lo_repository->is_offline( ) = abap_true.
         CONTINUE.
       ENDIF.
 
