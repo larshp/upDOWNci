@@ -65,21 +65,29 @@ CLASS zcl_updownci_sync_to_abapgit IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD stage_new_or_changed_variants.
-    DATA(lt_files) = mo_repository->get_files_remote( ).
+    DATA lt_files TYPE zif_abapgit_git_definitions=>ty_files_tt.
+    DATA ls_file TYPE zif_abapgit_git_definitions=>ty_file.
+    DATA lo_build_xml_error TYPE REF TO zcx_updownci_exception.
+
+    lt_files = mo_repository->get_files_remote( ).
 
     LOOP AT it_check_variants ASSIGNING FIELD-SYMBOL(<ls_check_variant>).
       TRY.
-          DATA(ls_file) = build_xml_file( <ls_check_variant> ).
-        CATCH zcx_updownci_exception INTO DATA(lo_build_xml_error).
+          ls_file = build_xml_file( <ls_check_variant> ).
+        CATCH zcx_updownci_exception INTO lo_build_xml_error.
           mi_abapgit_log->add_error( lo_build_xml_error->iv_text ).
           mi_abapgit_log->add_error( |Skipping { <ls_check_variant>-ciuser } { <ls_check_variant>-checkvname }| ).
           CONTINUE.
       ENDTRY.
 
-      IF line_exists( lt_files[ KEY file_path
-                                path     = ls_file-path
-                                filename = ls_file-filename
-                                data     = ls_file-data ] ).
+      READ TABLE lt_files
+           WITH KEY file_path
+           COMPONENTS path     = ls_file-path
+                      filename = ls_file-filename
+                      data     = ls_file-data
+           TRANSPORTING NO FIELDS.
+
+      IF sy-subrc = 0.
         " The file in Git doesn't differ from the variant
         CONTINUE.
       ENDIF.
@@ -91,13 +99,22 @@ CLASS zcl_updownci_sync_to_abapgit IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD stage_deletion_of_variants.
-    DATA(lt_files) = mo_repository->get_files_remote( ).
+    DATA lt_files TYPE zif_abapgit_git_definitions=>ty_files_tt.
+    DATA ls_check_variant_search TYPE zcl_updownci_sync_to_abapgit=>gy_check_variant.
+    FIELD-SYMBOLS <ls_file> TYPE zif_abapgit_git_definitions=>ty_file.
 
-    LOOP AT lt_files ASSIGNING FIELD-SYMBOL(<ls_file>)
+    lt_files = mo_repository->get_files_remote( ).
+
+    LOOP AT lt_files ASSIGNING <ls_file>
          WHERE path CP |{ mv_path }*|.
-      DATA(ls_check_variant_search) = get_variant_for_file( <ls_file> ).
+      ls_check_variant_search = get_variant_for_file( <ls_file> ).
 
-      IF NOT line_exists( it_check_variants[ table_line = ls_check_variant_search ] ).
+      READ TABLE it_check_variants
+           WITH KEY ciuser     = ls_check_variant_search-ciuser
+                    checkvname = ls_check_variant_search-checkvname
+           TRANSPORTING NO FIELDS.
+
+      IF sy-subrc <> 0.
         io_stage->rm( iv_path     = <ls_file>-path
                       iv_filename = <ls_file>-filename ).
       ENDIF.
@@ -105,12 +122,15 @@ CLASS zcl_updownci_sync_to_abapgit IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD build_xml_file.
-    DATA(lv_xml) = zcl_updownci=>build_xml( iv_name = is_check_variant-checkvname
-                                            iv_user = is_check_variant-ciuser ).
+    DATA lv_xml TYPE string.
+    DATA lo_abapgit_exception TYPE REF TO zcx_abapgit_exception.
+
+    lv_xml = zcl_updownci=>build_xml( iv_name = is_check_variant-checkvname
+                                      iv_user = is_check_variant-ciuser ).
 
     TRY.
         rs_file-data = zcl_abapgit_convert=>string_to_xstring_utf8( lv_xml ).
-      CATCH zcx_abapgit_exception INTO DATA(lo_abapgit_exception).
+      CATCH zcx_abapgit_exception INTO lo_abapgit_exception.
         RAISE EXCEPTION TYPE zcx_updownci_exception
           EXPORTING
             iv_text  = 'Error converting from string to xstring'
@@ -130,15 +150,17 @@ CLASS zcl_updownci_sync_to_abapgit IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD get_variant_for_file.
-    DATA(lv_extension_length) = strlen( gc_xml_file_extension ).
+    DATA lv_extension_length TYPE i.
+    DATA lv_variant_name_length TYPE i.
+
+    lv_extension_length = strlen( gc_xml_file_extension ).
+    lv_variant_name_length = strlen( is_file-filename ) - lv_extension_length.
 
     rs_check_variant_search = VALUE gy_check_variant( ).
 
-    rs_check_variant_search-ciuser = substring_before( val = substring_after( val = is_file-path
-                                                                              sub = mv_path )
-                                                       sub = `/` ).
-
-    DATA(lv_variant_name_length) = strlen( is_file-filename ) - lv_extension_length.
+    rs_check_variant_search-ciuser     = substring_before( val = substring_after( val = is_file-path
+                                                                                  sub = mv_path )
+                                                           sub = `/` ).
 
     rs_check_variant_search-checkvname = replace( val  = is_file-filename
                                                   sub  = gc_slash_replacement
