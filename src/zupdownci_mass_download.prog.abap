@@ -46,7 +46,7 @@ CLASS lcl_app IMPLEMENTATION.
     FIELD-SYMBOLS <ls_check_variant> TYPE gy_check_variant.
 
     lt_check_variants = read_check_variants_from_db( ).
-    lo_zip = NEW cl_abap_zip( ).
+    CREATE OBJECT lo_zip.
 
     TRY.
         LOOP AT lt_check_variants ASSIGNING <ls_check_variant>.
