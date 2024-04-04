@@ -27,4 +27,4 @@ Upload will create or add checks to the specified variant.
 You can utilize program `ZUPDOWNCI_MASS_DOWNLOAD` to download multiple variants as a single ZIP file.
 User-specific variants are stored in a folder named after the user.
 
-If the download fails due to a specific check variant, exclude it on the selection screen.
+If an error occurs for a specific check variant, then it is excluded from the ZIP file and an error is displayed.

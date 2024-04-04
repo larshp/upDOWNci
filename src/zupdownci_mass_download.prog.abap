@@ -48,13 +48,18 @@ CLASS lcl_app IMPLEMENTATION.
     lt_check_variants = read_check_variants_from_db( ).
     CREATE OBJECT lo_zip.
 
-    TRY.
-        LOOP AT lt_check_variants ASSIGNING <ls_check_variant>.
+    LOOP AT lt_check_variants ASSIGNING <ls_check_variant>.
+      TRY.
           add_variant_to_zip(
               io_zip           = lo_zip
               is_check_variant = <ls_check_variant> ).
-        ENDLOOP.
+        CATCH zcx_updownci_exception INTO lx_exception.
+          WRITE / lx_exception->iv_text.
+          WRITE / |Skipping check variant { <ls_check_variant>-ciuser } { <ls_check_variant>-checkvname }|.
+      ENDTRY.
+    ENDLOOP.
 
+    TRY.
         download_zip( lo_zip ).
       CATCH zcx_updownci_exception INTO lx_exception.
         MESSAGE lx_exception->iv_text TYPE 'E'.
