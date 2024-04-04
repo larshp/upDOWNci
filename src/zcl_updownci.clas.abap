@@ -327,8 +327,9 @@ CLASS zcl_updownci IMPLEMENTATION.
 
   METHOD download_attributes.
 
-    DATA: lt_import TYPE ty_parameter_tt,
-          lr_data   TYPE REF TO data.
+    DATA: lt_import          TYPE ty_parameter_tt,
+          lr_data            TYPE REF TO data,
+          lx_import_mismatch TYPE REF TO cx_sy_import_mismatch_error.
 
     FIELD-SYMBOLS: <lg_data> TYPE data.
 
@@ -345,10 +346,17 @@ CLASS zcl_updownci IMPLEMENTATION.
           et_memory = lt_import ).
       ASSIGN lr_data->* TO <lg_data>.
 
-      IMPORT (lt_import) FROM DATA BUFFER iv_attributes.
-      IF sy-subrc <> 0.
-        RAISE EXCEPTION TYPE zcx_updownci_exception EXPORTING iv_text = 'IMPORT error'.
-      ENDIF.
+      TRY.
+          IMPORT (lt_import) FROM DATA BUFFER iv_attributes.
+          IF sy-subrc <> 0.
+            RAISE EXCEPTION TYPE zcx_updownci_exception EXPORTING iv_text = 'IMPORT error'.
+          ENDIF.
+        CATCH cx_sy_import_mismatch_error INTO lx_import_mismatch.
+          RAISE EXCEPTION TYPE zcx_updownci_exception
+            EXPORTING
+              iv_text  = 'IMPORT mismatch error'
+              previous = lx_import_mismatch.
+      ENDTRY.
 
       go_xml->write_variant( iv_testname = iv_class
                              iv_version  = iv_version
