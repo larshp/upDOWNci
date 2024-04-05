@@ -34,6 +34,10 @@ CLASS lcl_app DEFINITION.
       RAISING
         cx_bcs
         zcx_updownci_exception.
+
+    CLASS-METHODS write_exception_texts
+      IMPORTING
+        ix_exception TYPE REF TO cx_root.
 ENDCLASS.
 
 
@@ -54,8 +58,9 @@ CLASS lcl_app IMPLEMENTATION.
               io_zip           = lo_zip
               is_check_variant = <ls_check_variant> ).
         CATCH zcx_updownci_exception INTO lx_exception.
-          WRITE / lx_exception->iv_text.
+          write_exception_texts( lx_exception ).
           WRITE / |Skipping check variant { <ls_check_variant>-ciuser } { <ls_check_variant>-checkvname }|.
+          WRITE /.
       ENDTRY.
     ENDLOOP.
 
@@ -120,6 +125,17 @@ CLASS lcl_app IMPLEMENTATION.
             previous = lx_exception.
     ENDTRY.
   ENDMETHOD.
+
+  METHOD write_exception_texts.
+    DATA lx_exception LIKE ix_exception.
+    lx_exception = ix_exception.
+
+    WHILE lx_exception IS BOUND.
+      WRITE / lx_exception->get_text( ).
+      lx_exception = lx_exception->previous.
+    ENDWHILE.
+  ENDMETHOD.
+
 ENDCLASS.
 
 START-OF-SELECTION.
