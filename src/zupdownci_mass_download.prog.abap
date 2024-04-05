@@ -128,7 +128,6 @@ CLASS lcl_app IMPLEMENTATION.
 
   METHOD write_exception_texts.
     DATA lx_exception LIKE ix_exception.
-
     lx_exception = ix_exception.
 
     WHILE lx_exception IS BOUND.
