@@ -1,9 +1,11 @@
 REPORT zupdownci_mass_download.
 
 TABLES scichkv_hd.
+TABLES seoclass.
 
 SELECT-OPTIONS s_user FOR scichkv_hd-ciuser.
 SELECT-OPTIONS s_name FOR scichkv_hd-checkvname.
+SELECT-OPTIONS s_class FOR seoclass-clsname.
 
 CLASS lcl_app DEFINITION.
 
@@ -101,8 +103,9 @@ CLASS lcl_app IMPLEMENTATION.
     DATA lx_exception TYPE REF TO zcx_updownci_exception.
 
     TRY.
-        lv_xml = zcl_updownci=>build_xml( iv_name = is_check_variant-checkvname
-                                                iv_user = is_check_variant-ciuser ).
+        lv_xml = zcl_updownci=>build_xml( iv_name  = is_check_variant-checkvname
+                                          iv_user  = is_check_variant-ciuser
+                                          it_class = s_class[] ).
         lv_path = `/`.
 
         IF is_check_variant-ciuser IS NOT INITIAL.

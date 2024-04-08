@@ -18,6 +18,13 @@
     </item>
     <item>
      <ID>S</ID>
+     <KEY>S_CLASS</KEY>
+     <ENTRY>.</ENTRY>
+     <LENGTH>9</LENGTH>
+     <SPLIT>D</SPLIT>
+    </item>
+    <item>
+     <ID>S</ID>
      <KEY>S_NAME</KEY>
      <ENTRY>.</ENTRY>
      <LENGTH>9</LENGTH>
