@@ -130,6 +130,15 @@ CLASS zcl_updownci DEFINITION
         VALUE(rr_data) TYPE REF TO data
       RAISING
         zcx_updownci_exception .
+
+    CLASS-METHODS get_type_description
+      IMPORTING
+        iv_type                    TYPE string
+        iv_class                   TYPE seoclsname
+      RETURNING
+        VALUE(ro_type_description) TYPE REF TO cl_abap_typedescr
+      RAISING
+        zcx_updownci_exception.
 ENDCLASS.
 
 
@@ -278,16 +287,16 @@ CLASS zcl_updownci IMPLEMENTATION.
 
   ENDMETHOD.                    "upload
 
-
   METHOD create_structure.
+    DATA lt_components TYPE cl_abap_structdescr=>component_table.
+    DATA lo_typedescr_type TYPE REF TO cl_abap_typedescr.
+    DATA lo_typedescr_class TYPE REF TO cl_abap_typedescr.
+    DATA lo_structdescr TYPE REF TO cl_abap_structdescr.
+    DATA lo_instance TYPE REF TO object.
+    DATA lo_objectdescr TYPE REF TO cl_abap_objectdescr.
 
-    DATA: lt_components  TYPE cl_abap_structdescr=>component_table,
-          lo_type        TYPE REF TO cl_abap_typedescr,
-          lo_structdescr TYPE REF TO cl_abap_structdescr.
-
-    FIELD-SYMBOLS: <ls_component> LIKE LINE OF lt_components,
-                   <ls_type>      LIKE LINE OF it_types.
-
+    FIELD-SYMBOLS <ls_component> LIKE LINE OF lt_components.
+    FIELD-SYMBOLS <ls_type> LIKE LINE OF it_types.
 
     IF it_types IS INITIAL.
       RETURN.
@@ -296,20 +305,9 @@ CLASS zcl_updownci IMPLEMENTATION.
     LOOP AT it_types ASSIGNING <ls_type>.
       APPEND INITIAL LINE TO lt_components ASSIGNING <ls_component>.
       <ls_component>-name = <ls_type>-name.
-
-      cl_abap_typedescr=>describe_by_name(
-        EXPORTING
-          p_name         = <ls_type>-type
-        RECEIVING
-          p_descr_ref    = lo_type
-        EXCEPTIONS
-          type_not_found = 1
-          OTHERS         = 2 ).
-      <ls_component>-type ?= lo_type.
-      IF sy-subrc <> 0.
-        <ls_component>-type ?= cl_abap_typedescr=>describe_by_name( |{ iv_class }=>{ <ls_type>-type }| ).
-      ENDIF.
-
+      <ls_component>-type ?= get_type_description(
+          iv_type  = <ls_type>-type
+          iv_class = iv_class ).
     ENDLOOP.
 
     SORT lt_components BY name ASCENDING.
@@ -321,8 +319,7 @@ CLASS zcl_updownci IMPLEMENTATION.
       CATCH cx_sy_struct_comp_name.
         RAISE EXCEPTION TYPE zcx_updownci_exception EXPORTING iv_text = 'error creating structure'.
     ENDTRY.
-
-  ENDMETHOD.                    "create_structure
+  ENDMETHOD.
 
 
   METHOD download_attributes.
@@ -608,4 +605,42 @@ CLASS zcl_updownci IMPLEMENTATION.
     ENDIF.
 
   ENDMETHOD.                    "upload_attributes
+
+  METHOD get_type_description.
+    DATA lo_type_description_class TYPE REF TO cl_abap_typedescr.
+    DATA lo_instance TYPE REF TO object.
+    DATA lo_object_description TYPE REF TO cl_abap_objectdescr.
+
+    cl_abap_typedescr=>describe_by_name(
+      EXPORTING
+        p_name         = iv_type
+      RECEIVING
+        p_descr_ref    = ro_type_description
+      EXCEPTIONS
+        type_not_found = 1
+        OTHERS         = 2 ).
+
+    IF sy-subrc <> 0.
+      " The type isn't global, so we expect it to be local to the class instead
+      CREATE OBJECT lo_instance TYPE (iv_class).
+      lo_type_description_class = cl_abap_typedescr=>describe_by_object_ref( lo_instance ).
+
+      lo_object_description ?= lo_type_description_class.
+
+      lo_object_description->get_type(
+        EXPORTING
+          p_name         = iv_type
+        RECEIVING
+          p_descr_ref    = ro_type_description
+        EXCEPTIONS
+          type_not_found = 1 ).
+
+      IF sy-subrc <> 0.
+        RAISE EXCEPTION TYPE zcx_updownci_exception
+          EXPORTING
+            iv_text = |Error creating type description for { iv_type } from { iv_class }|.
+      ENDIF.
+    ENDIF.
+  ENDMETHOD.
+
 ENDCLASS.
