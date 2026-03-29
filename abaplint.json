@@ -1,38 +1,32 @@
 {
   "global": {
-    "files": "/src/**/*.*",
-    "skipGeneratedGatewayClasses": true,
-    "skipGeneratedPersistentClasses": true,
-    "skipGeneratedFunctionGroups": true
+    "files": "/src/**/*.*"
   },
   "dependencies": [
     {
-      "url": "https://github.com/abaplint/deps",
-      "folder": "/deps",
+      "url": "https://github.com/open-abap/open-abap-core",
+      "files": "/src/**/*.*"
+    },
+    {
+      "url": "https://github.com/open-abap/open-abap-ci",
       "files": "/src/**/*.*"
     }
   ],
   "syntax": {
     "version": "v702",
-    "errorNamespace": "^(Z|Y|LT?CL_|TY_|LIF_|)",
-    "globalMacros": []
+    "errorNamespace": "^(Z|Y|LT?CL_|TY_|LIF_|)"
   },
   "rules": {
     "7bit_ascii": true,
     "avoid_use": true,
     "class_attribute_names": true,
-    "cloud_types": {
-      "enabled": true,
-      "exclude": []
-    },
-    "colon_missing_space": {
-      "enabled": true,
-      "exclude": []
-    },
-    "commented_code": {
-      "enabled": true,
-      "exclude": []
-    },
+    "cloud_types": true,
+    "abapdoc": false,
+    "add_test_attributes": true,
+    "aff_and_xml": true,
+    "align_parameters": false,
+    "colon_missing_space": true,
+    "commented_code": true,
     "constructor_visibility_public": {
       "enabled": true,
       "exclude": []
