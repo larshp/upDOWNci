@@ -27,38 +27,17 @@
     "align_parameters": false,
     "colon_missing_space": true,
     "commented_code": true,
-    "constructor_visibility_public": {
-      "enabled": true,
-      "exclude": []
-    },
-    "contains_tab": {
-      "enabled": true,
-      "exclude": []
-    },
-    "definitions_top": {
-      "enabled": true,
-      "exclude": []
-    },
-    "description_empty": {
-      "enabled": true,
-      "exclude": []
-    },
-    "double_space": {
-      "enabled": true,
-      "exclude": [],
-      "keywords": true,
-      "startParen": true,
-      "endParen": true
-    },
+    "constructor_visibility_public": true,
+    "contains_tab": true,
+    "definitions_top": true,
+    "description_empty": true,
+    "double_space": true,
     "empty_line_in_statement": {
       "enabled": true,
       "exclude": [],
       "allowChained": false
     },
-    "empty_statement": {
-      "enabled": true,
-      "exclude": []
-    },
+    "empty_statement": true,
     "empty_structure": {
       "enabled": true,
       "exclude": [],
@@ -70,31 +49,16 @@
       "do": true,
       "at": true
     },
-    "exit_or_check": {
-      "enabled": true,
-      "exclude": []
-    },
-    "exporting": {
-      "enabled": true,
-      "exclude": []
-    },
+    "exit_or_check": true,
+    "exporting": true,
     "functional_writing": {
       "enabled": true,
       "exclude": [],
       "ignoreExceptions": true
     },
-    "global_class": {
-      "enabled": true,
-      "exclude": []
-    },
-    "identical_form_names": {
-      "enabled": true,
-      "exclude": []
-    },
-    "if_in_if": {
-      "enabled": true,
-      "exclude": []
-    },
+    "global_class": true,
+    "identical_form_names": true,
+    "if_in_if": true,
     "in_statement_indentation": {
       "enabled": true,
       "exclude": [],
@@ -109,10 +73,7 @@
       "ignoreGlobalClassDefinition": false,
       "ignoreGlobalInterface": false
     },
-    "inline_data_old_versions": {
-      "enabled": true,
-      "exclude": []
-    },
+    "inline_data_old_versions": true,
     "keywords_upper": {
       "enabled": true,
       "exclude": [],
@@ -145,14 +106,8 @@
       "expectedConstant": "^LC_.*$",
       "expectedFS": "^<L._.*>$"
     },
-    "max_one_statement": {
-      "enabled": true,
-      "exclude": []
-    },
-    "message_exists": {
-      "enabled": true,
-      "exclude": []
-    },
+    "max_one_statement": true,
+    "message_exists": true,
     "method_length": {
       "enabled": true,
       "exclude": [],
@@ -170,23 +125,14 @@
         "P_TASK"
       ]
     },
-    "mix_returning": {
-      "enabled": true,
-      "exclude": []
-    },
-    "msag_consistency": {
-      "enabled": true,
-      "exclude": []
-    },
+    "mix_returning": true,
+    "msag_consistency": true,
     "nesting": {
       "enabled": true,
       "exclude": [],
       "depth": 5
     },
-    "no_public_attributes": {
-      "enabled": true,
-      "exclude": []
-    },
+    "no_public_attributes": true,
     "object_naming": {
       "enabled": true,
       "exclude": [],
@@ -216,10 +162,7 @@
       "divide": true,
       "requested": true
     },
-    "parser_error": {
-      "enabled": true,
-      "exclude": []
-    },
+    "parser_error": true,
     "preferred_compare_operator": {
       "enabled": true,
       "exclude": [],
@@ -249,39 +192,21 @@
       "length": 1,
       "allow": []
     },
-    "space_before_colon": {
-      "enabled": true,
-      "exclude": []
-    },
+    "space_before_colon": true,
     "space_before_dot": {
       "enabled": true,
       "exclude": [],
       "ignoreGlobalDefinition": true,
       "ignoreExceptions": true
     },
-    "start_at_tab": {
-      "enabled": true,
-      "exclude": []
-    },
+    "start_at_tab": true,
     "superclass_final": {
       "enabled": false,
       "exclude": []
     },
-    "tabl_enhancement_category": {
-      "enabled": true,
-      "exclude": []
-    },
-    "unreachable_code": {
-      "enabled": true,
-      "exclude": []
-    },
-    "when_others_last": {
-      "enabled": true,
-      "exclude": []
-    },
-    "whitespace_end": {
-      "enabled": true,
-      "exclude": []
-    }
+    "tabl_enhancement_category": true,
+    "unreachable_code": true,
+    "when_others_last": true,
+    "whitespace_end": true
   }
 }
