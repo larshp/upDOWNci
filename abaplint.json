@@ -18,33 +18,9 @@
     "globalMacros": []
   },
   "rules": {
-    "7bit_ascii": {
-      "enabled": true,
-      "exclude": []
-    },
-    "avoid_use": {
-      "enabled": true,
-      "exclude": [],
-      "define": true,
-      "endselect": true,
-      "execSQL": true,
-      "kernelCall": true
-    },
-    "breakpoint": {
-      "enabled": true,
-      "exclude": []
-    },
-    "check_variables": {
-      "enabled": false,
-      "exclude": []
-    },
-    "class_attribute_names": {
-      "enabled": true,
-      "exclude": [],
-      "ignoreExceptions": true,
-      "statics": "^G._.*$",
-      "instance": "^M._.*$"
-    },
+    "7bit_ascii": true,
+    "avoid_use": true,
+    "class_attribute_names": true,
     "cloud_types": {
       "enabled": true,
       "exclude": []
