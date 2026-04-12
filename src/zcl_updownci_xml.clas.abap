@@ -29,6 +29,7 @@ CLASS zcl_updownci_xml DEFINITION
       render
         RETURNING VALUE(rv_xml) TYPE string.
 
+  PROTECTED SECTION.
   PRIVATE SECTION.
     CONSTANTS gc_xml_remote_variant_name TYPE string VALUE 'REMOTE_VARIANT_NAME' ##NO_TEXT.
 
@@ -72,7 +73,7 @@ ENDCLASS.
 
 
 
-CLASS zcl_updownci_xml IMPLEMENTATION.
+CLASS ZCL_UPDOWNCI_XML IMPLEMENTATION.
 
 
   METHOD constructor.
@@ -289,7 +290,7 @@ CLASS zcl_updownci_xml IMPLEMENTATION.
           simple_export( iv_data   = <lg_any>
                          ii_parent = li_parent ).
         WHEN OTHERS.
-          RAISE EXCEPTION TYPE zcx_updownci_exception EXPORTING iv_text ='unknown kind'.
+          RAISE EXCEPTION TYPE zcx_updownci_exception EXPORTING iv_text = 'unknown kind'.
       ENDCASE.
     ENDLOOP.
 
@@ -332,7 +333,7 @@ CLASS zcl_updownci_xml IMPLEMENTATION.
           simple_import( EXPORTING ii_parent = li_parent
                          CHANGING cv_data    = <lg_any> ).
         WHEN OTHERS.
-          RAISE EXCEPTION TYPE zcx_updownci_exception EXPORTING iv_text ='unknown kind'.
+          RAISE EXCEPTION TYPE zcx_updownci_exception EXPORTING iv_text = 'unknown kind'.
       ENDCASE.
     ENDLOOP.
 
@@ -368,7 +369,7 @@ CLASS zcl_updownci_xml IMPLEMENTATION.
           simple_export( iv_data   = <lg_line>
                          ii_parent = li_parent ).
         WHEN OTHERS.
-          RAISE EXCEPTION TYPE zcx_updownci_exception EXPORTING iv_text ='unknown kind'.
+          RAISE EXCEPTION TYPE zcx_updownci_exception EXPORTING iv_text = 'unknown kind'.
       ENDCASE.
     ENDLOOP.
 
@@ -414,7 +415,7 @@ CLASS zcl_updownci_xml IMPLEMENTATION.
           simple_import( EXPORTING ii_parent = li_node
                          CHANGING cv_data   = <lg_line> ).
         WHEN OTHERS.
-          RAISE EXCEPTION TYPE zcx_updownci_exception EXPORTING iv_text ='unknown kind'.
+          RAISE EXCEPTION TYPE zcx_updownci_exception EXPORTING iv_text = 'unknown kind'.
       ENDCASE.
 
       li_node = li_iterator->get_next( ).
@@ -453,6 +454,7 @@ CLASS zcl_updownci_xml IMPLEMENTATION.
 
   ENDMETHOD.
 
+
   METHOD write_remote_variant_name.
     DATA lv_value TYPE string.
     lv_value = iv_remote_variant_name.
@@ -461,8 +463,8 @@ CLASS zcl_updownci_xml IMPLEMENTATION.
                                value = lv_value ).
   ENDMETHOD.
 
+
   METHOD read_remote_variant_name.
     rv_remote_variant_name = mi_root->get_attribute_ns( name = gc_xml_remote_variant_name ).
   ENDMETHOD.
-
 ENDCLASS.
