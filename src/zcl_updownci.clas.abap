@@ -344,7 +344,7 @@ CLASS zcl_updownci IMPLEMENTATION.
       ASSIGN lr_data->* TO <lg_data>.
 
       TRY.
-          IMPORT (lt_import) FROM DATA BUFFER iv_attributes.
+          IMPORT (lt_import) FROM DATA BUFFER iv_attributes ACCEPTING PADDING ACCEPTING TRUNCATION.
           IF sy-subrc <> 0.
             RAISE EXCEPTION TYPE zcx_updownci_exception EXPORTING iv_text = 'IMPORT error'.
           ENDIF.
